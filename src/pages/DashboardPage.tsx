@@ -1,60 +1,75 @@
-import { useCallback, useState } from "react"
-import { useDropzone } from "react-dropzone"
-import { FileText, Upload, LogOut, Bell, User } from "lucide-react"
-import { GlassCard } from "@/components/GlassCard"
+import type { ReactNode } from "react"
+import { LogOut, Bell, User, ShieldCheck, BarChart3, TrendingUp, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
 
-interface Document {
+interface Module {
   id: string
-  name: string
-  size: string
-  uploadedAt: string
-  status: "processing" | "ready" | "error"
+  title: string
+  description: string
+  icon: ReactNode
+  accent: string
+  glow: string
+  orb: string
+  available: boolean
 }
 
-const STUB_DOCUMENTS: Document[] = [
-  { id: "1", name: "tender-2024-q1.pdf", size: "2.4 MB", uploadedAt: "2026-04-10", status: "ready" },
-  { id: "2", name: "specification-lot3.docx", size: "840 KB", uploadedAt: "2026-04-12", status: "ready" },
-  { id: "3", name: "contract-draft.pdf", size: "1.1 MB", uploadedAt: "2026-04-14", status: "processing" },
+const PLACEHOLDER_MODULE: Omit<Module, "id"> = {
+  title: "Скоро",
+  description: "Модуль в разработке",
+  icon: <Plus className="h-7 w-7" />,
+  accent: "from-white/5 to-white/0",
+  glow: "bg-white/10",
+  orb: "bg-white/5",
+  available: false,
+}
+
+const MODULES: Module[] = [
+  {
+    id: "depersonalization",
+    title: "Деперсонализация",
+    description: "Автоматическое удаление персональных данных из тендерной документации перед анализом",
+    icon: <ShieldCheck className="h-7 w-7" />,
+    accent: "from-violet-500/20 to-purple-600/10",
+    glow: "bg-violet-500/30",
+    orb: "bg-violet-600/20",
+    available: true,
+  },
+  {
+    id: "key-params",
+    title: "Ключевые параметры",
+    description: "Извлечение и структурирование ключевых условий, сроков и требований из тендера",
+    icon: <BarChart3 className="h-7 w-7" />,
+    accent: "from-sky-500/20 to-cyan-600/10",
+    glow: "bg-sky-500/30",
+    orb: "bg-sky-600/20",
+    available: true,
+  },
+  {
+    id: "cost-increase",
+    title: "Удорожание",
+    description: "Анализ факторов и рисков, которые могут привести к увеличению стоимости контракта",
+    icon: <TrendingUp className="h-7 w-7" />,
+    accent: "from-amber-500/20 to-orange-600/10",
+    glow: "bg-amber-500/30",
+    orb: "bg-amber-600/20",
+    available: true,
+  },
+  { ...PLACEHOLDER_MODULE, id: "todo-4" },
+  { ...PLACEHOLDER_MODULE, id: "todo-5" },
+  { ...PLACEHOLDER_MODULE, id: "todo-6" },
 ]
 
-const STATUS_STYLES: Record<Document["status"], string> = {
-  ready: "bg-emerald-500/20 text-emerald-400",
-  processing: "bg-yellow-500/20 text-yellow-400",
-  error: "bg-red-500/20 text-red-400",
-}
-
-export default function DashboardPage() {
-  const { logout } = useAuth()
-  const [documents, setDocuments] = useState<Document[]>(STUB_DOCUMENTS)
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newDocs: Document[] = acceptedFiles.map((file) => ({
-      id: crypto.randomUUID(),
-      name: file.name,
-      size: `${(file.size / 1024).toFixed(0)} KB`,
-      uploadedAt: new Date().toISOString().split("T")[0],
-      status: "processing",
-    }))
-    setDocuments((prev) => [...newDocs, ...prev])
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      "application/pdf": [".pdf"],
-      "application/msword": [".doc"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
-    },
-  })
+function DashboardPage() {
+  const { logout, user } = useAuth()
 
   return (
     <div className="min-h-screen bg-[#020617]">
       {/* Ambient spheres */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/4 h-100 w-100 rounded-full bg-purple-700/20 blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 h-75 w-75 rounded-full bg-indigo-600/20 blur-[120px]" />
+        <div className="absolute -top-40 left-1/4 h-100 w-100 rounded-full bg-purple-700/15 blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 h-75 w-75 rounded-full bg-indigo-600/15 blur-[120px]" />
+        <div className="absolute top-1/2 left-3/4 h-62.5 w-62.5 rounded-full bg-sky-600/10 blur-[100px]" />
       </div>
 
       {/* Top navigation */}
@@ -68,6 +83,9 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {user && (
+              <span className="text-xs text-white/30 hidden sm:block">{user.email}</span>
+            )}
             <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10">
               <Bell className="h-5 w-5" />
             </Button>
@@ -82,63 +100,68 @@ export default function DashboardPage() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 mx-auto max-w-7xl px-6 py-10">
-        <h1 className="mb-8 text-2xl font-semibold text-white">Documents</h1>
+      <main className="relative z-10 mx-auto max-w-7xl px-6 py-12">
+        <div className="mb-10">
+          <h1 className="text-3xl font-semibold text-white">
+            {user ? `Добро пожаловать, ${user.full_name}` : "Dashboard"}
+          </h1>
+          <p className="mt-2 text-sm text-white/40">Выберите модуль для анализа тендера</p>
+        </div>
 
-        {/* Drop zone */}
-        <GlassCard className="mb-8">
-          <div
-            {...getRootProps()}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl p-10 transition-colors ${
-              isDragActive ? "border-2 border-dashed border-indigo-500 bg-indigo-500/10" : "border-2 border-dashed border-white/10 hover:border-white/20"
-            }`}
-          >
-            <input {...getInputProps()} />
-            <Upload className="h-10 w-10 text-white/30" />
-            {isDragActive ? (
-              <p className="text-sm text-indigo-400">Drop files here…</p>
-            ) : (
-              <>
-                <p className="text-sm font-medium text-white/70">Drag & drop files here, or click to select</p>
-                <p className="text-xs text-white/30">Supported: PDF, DOC, DOCX</p>
-              </>
-            )}
-          </div>
-        </GlassCard>
+        {/* Modules grid */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {MODULES.map((module) => (
+            // TODO: wrap in <Link> once module routes are registered in App.tsx
+            <div
+              key={module.id}
+              className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 ${
+                module.available
+                  ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8"
+                  : "border-white/5 bg-white/2"
+              }`}
+            >
+              {/* Gradient overlay */}
+              <div className={`absolute inset-0 bg-linear-to-br ${module.accent} pointer-events-none`} />
 
-        {/* Documents table */}
-        <GlassCard>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-white/40">
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Size</th>
-                  <th className="px-6 py-4">Uploaded</th>
-                  <th className="px-6 py-4">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map((doc) => (
-                  <tr key={doc.id} className="border-b border-white/5 transition-colors hover:bg-white/5">
-                    <td className="flex items-center gap-3 px-6 py-4 text-white/80">
-                      <FileText className="h-4 w-4 shrink-0 text-indigo-400" />
-                      {doc.name}
-                    </td>
-                    <td className="px-6 py-4 text-white/50">{doc.size}</td>
-                    <td className="px-6 py-4 text-white/50">{doc.uploadedAt}</td>
-                    <td className="px-6 py-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[doc.status]}`}>
-                        {doc.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </GlassCard>
+              {/* Decorative orb inside card */}
+              <div className={`absolute -top-6 -right-6 h-24 w-24 rounded-full ${module.orb} blur-2xl pointer-events-none`} />
+
+              <div className="relative p-6">
+                {/* Icon container */}
+                <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl ${module.glow} backdrop-blur-sm ${module.available ? "text-white" : "text-white/20"}`}>
+                  {module.icon}
+                </div>
+
+                {/* Coming soon badge */}
+                {!module.available && (
+                  <span className="absolute top-5 right-5 rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/20">
+                    Скоро
+                  </span>
+                )}
+
+                <h2 className={`mb-2 text-base font-semibold ${module.available ? "text-white" : "text-white/20"}`}>
+                  {module.title}
+                </h2>
+                <p className={`text-sm leading-relaxed ${module.available ? "text-white/50" : "text-white/15"}`}>
+                  {module.description}
+                </p>
+
+                {/* Arrow hint on hover */}
+                {module.available && (
+                  <div className="mt-5 flex items-center gap-1.5 text-xs font-medium text-indigo-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    Открыть модуль
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   )
 }
+
+export default DashboardPage
