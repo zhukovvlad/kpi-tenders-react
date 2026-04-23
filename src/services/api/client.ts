@@ -15,9 +15,14 @@ apiClient.interceptors.response.use(
     const status: number | undefined = error.response?.status
     const message: string = error.response?.data?.message ?? ""
 
-    // Auth endpoints handle errors inline — skip global toast for all status codes
+    // Interactive auth endpoints handle errors inline — skip global toast for them.
+    // /auth/me is NOT skipped so its 4xx/5xx errors surface via global handlers.
     const url: string = error.config?.url ?? ""
-    if (!url.includes("/auth/")) {
+    const isInteractiveAuthEndpoint = ["/auth/login", "/auth/register", "/auth/logout"].some(
+      (endpoint) => url.includes(endpoint),
+    )
+
+    if (!isInteractiveAuthEndpoint) {
       if (status === 403) {
         toast.error("Доступ запрещён")
       } else if (status === 400) {

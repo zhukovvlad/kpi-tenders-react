@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     logger.warn("Session expired or unauthorized", { status: 401 })
-    navigate("/")
+    navigate("/", { replace: true })
   }, [error, navigate, location.pathname])
 
   useEffect(() => {

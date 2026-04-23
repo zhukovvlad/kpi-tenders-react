@@ -96,9 +96,9 @@ if (user?.role !== 'admin') return null;
 - Base URL from `VITE_API_URL` env var (empty = relative paths for proxy).
 
 **Interceptor rules** (centralized, in `client.ts`):
-- `401` → **not** handled by the interceptor; `AuthContext` navigates to `/` on 401 to avoid redirect loops.
+- `401` → **not** handled by the interceptor; `AuthContext` navigates to `/` (with `replace: true`) on 401 to avoid redirect loops.
 - `403` → `toast.error('Доступ запрещён')`.
-- `400` → `toast.error(message)` — skipped for `/auth/` endpoints (they show inline errors).
+- `400` → `toast.error(message)` — skipped for `/auth/login`, `/auth/register`, `/auth/logout` (they show inline errors). `/auth/me` errors **do** surface here.
 - `5xx` → `toast.error('Ошибка сервера. Попробуйте позже.')`.
 - Do NOT add per-component try/catch for `403`, `400`, `5xx` — they are handled globally by the interceptor.
 
