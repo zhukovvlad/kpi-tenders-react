@@ -83,9 +83,9 @@ function DashboardPage() {
     <div className="min-h-screen bg-[#020617]">
       {/* Ambient spheres */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/4 h-100 w-100 rounded-full bg-purple-700/15 blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 h-75 w-75 rounded-full bg-indigo-600/15 blur-[120px]" />
-        <div className="absolute top-1/2 left-3/4 h-62.5 w-62.5 rounded-full bg-sky-600/10 blur-[100px]" />
+        <div className="absolute -top-40 left-1/4 h-[25rem] w-[25rem] rounded-full bg-purple-700/15 blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 h-[18.75rem] w-[18.75rem] rounded-full bg-indigo-600/15 blur-[120px]" />
+        <div className="absolute top-1/2 left-3/4 h-[15.625rem] w-[15.625rem] rounded-full bg-sky-600/10 blur-[100px]" />
       </div>
 
       {/* Top navigation */}

@@ -71,9 +71,9 @@ src/
 **Flow:**
 1. App mount → `AuthProvider` calls `GET /api/v1/auth/me`.
 2. Success → stores `{ id, email, full_name, role, org_id }` in `AuthContext`.
-3. 401 → `isAuthenticated = false`, redirect to `/login`.
+3. 401 → `isAuthenticated = false`, `AuthContext` navigates to `/`.
 4. Login/Register → backend sets HTTP-only cookies, then re-call `/api/v1/auth/me`.
-5. Logout → `POST /api/v1/auth/logout`, clear context state.
+5. Logout → `POST /api/v1/auth/logout`, clear query cache, navigate to `/`.
 
 **Endpoints:**
 ```
