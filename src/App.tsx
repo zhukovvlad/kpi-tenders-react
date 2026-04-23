@@ -1,9 +1,13 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { Toaster } from "@/components/ui/sonner"
 import { AuthProvider } from "@/context/AuthContext"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { useAuth } from "@/hooks/useAuth"
 import LandingPage from "@/pages/LandingPage"
 import DashboardPage from "@/pages/DashboardPage"
+
+const queryClient = new QueryClient()
 
 function AppRoutes() {
   const { isLoading } = useAuth()
@@ -33,11 +37,14 @@ function AppRoutes() {
 
 export function App() {
   return (
-    <AuthProvider>
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppRoutes />
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
-    </AuthProvider>
+      <Toaster richColors position="top-right" />
+    </QueryClientProvider>
   )
 }
 
