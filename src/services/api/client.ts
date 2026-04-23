@@ -18,7 +18,11 @@ apiClient.interceptors.response.use(
     if (status === 403) {
       toast.error("Доступ запрещён")
     } else if (status === 400) {
-      toast.error(message || "Некорректный запрос")
+      // Skip toast for auth endpoints — they handle errors inline
+      const url: string = error.config?.url ?? ""
+      if (!url.includes("/auth/")) {
+        toast.error(message || "Некорректный запрос")
+      }
     } else if (status !== undefined && status >= 500) {
       toast.error("Ошибка сервера. Попробуйте позже.")
     }

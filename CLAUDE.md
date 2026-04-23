@@ -45,15 +45,11 @@ src/
 
 ```
 /                  — LandingPage (public)
-/login             — Login page
-/register          — Register organization page
 /dashboard         — Dashboard (protected)
-/sites             — Construction sites registry
-/sites/:id         — Site detail: nested object tree + documents
-/tasks             — AI task monitoring (document_tasks polling)
-/users             — Team management (admin only)
-/profile           — User settings, password change, session management
 ```
+
+> Planned (not yet registered in `App.tsx`):
+> `/login`, `/register`, `/sites`, `/sites/:id`, `/tasks`, `/users`, `/profile`
 
 **Protected routes** use `<ProtectedRoute>`. Add new protected routes via the same wrapper — never add auth checks inside page components.
 
@@ -100,11 +96,11 @@ if (user?.role !== 'admin') return null;
 - Base URL from `VITE_API_URL` env var (empty = relative paths for proxy).
 
 **Interceptor rules** (centralized, in `client.ts`):
-- `401` → call `logout()` from `AuthContext` + redirect `/login`.
-- `403` → `toast.error('Access denied')`.
-- `400` → `toast.error(response.data.message ?? 'Invalid request')`.
-- `5xx` → `toast.error('Server error. Please try again later.')`.
-- Do NOT add per-component try/catch for network errors that are handled by the interceptor.
+- `401` → **not** handled by the interceptor; `AuthContext` navigates to `/` on 401 to avoid redirect loops.
+- `403` → `toast.error('Доступ запрещён')`.
+- `400` → `toast.error(message)` — skipped for `/auth/` endpoints (they show inline errors).
+- `5xx` → `toast.error('Ошибка сервера. Попробуйте позже.')`.
+- Do NOT add per-component try/catch for `403`, `400`, `5xx` — they are handled globally by the interceptor.
 
 **Toast notifications** — use `toast` from shadcn/ui `sonner` component.
 
@@ -124,7 +120,7 @@ logger.error('Upload failed', { docId, error });
 - `development` — all levels with context.
 - `production` — only `warn` and `error`.
 
-> `src/lib/logger.ts` — to be created. Wrap `console.*` with env check.
+> `src/lib/logger.ts` — centralized logger implementation. Keep `console.*` wrapped with environment-based checks here.
 
 ## Testing
 

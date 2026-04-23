@@ -83,9 +83,9 @@ function DashboardPage() {
     <div className="min-h-screen bg-[#020617]">
       {/* Ambient spheres */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/4 h-[400px] w-[400px] rounded-full bg-purple-700/15 blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 h-[300px] w-[300px] rounded-full bg-indigo-600/15 blur-[120px]" />
-        <div className="absolute top-1/2 left-3/4 h-[250px] w-[250px] rounded-full bg-sky-600/10 blur-[100px]" />
+        <div className="absolute -top-40 left-1/4 h-100 w-100 rounded-full bg-purple-700/15 blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 h-75 w-75 rounded-full bg-indigo-600/15 blur-[120px]" />
+        <div className="absolute top-1/2 left-3/4 h-62.5 w-62.5 rounded-full bg-sky-600/10 blur-[100px]" />
       </div>
 
       {/* Top navigation */}
@@ -133,11 +133,11 @@ function DashboardPage() {
               className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 ${
                 module.available
                   ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8 hover:-translate-y-0.5 cursor-pointer"
-                  : "border-white/5 bg-white/[0.02] cursor-default"
+                  : "border-white/5 bg-white/2 cursor-default"
               }`}
             >
               {/* Gradient overlay */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${module.accent} pointer-events-none`} />
+              <div className={`absolute inset-0 bg-linear-to-br ${module.accent} pointer-events-none`} />
 
               {/* Decorative orb inside card */}
               <div className={`absolute -top-6 -right-6 h-24 w-24 rounded-full ${module.orb} blur-2xl pointer-events-none`} />
