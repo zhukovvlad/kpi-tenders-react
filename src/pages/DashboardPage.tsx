@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { LogOut, Bell, User, ShieldCheck, BarChart3, TrendingUp, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
@@ -6,7 +7,7 @@ interface Module {
   id: string
   title: string
   description: string
-  icon: React.ReactNode
+  icon: ReactNode
   accent: string
   glow: string
   orb: string
@@ -127,13 +128,13 @@ function DashboardPage() {
         {/* Modules grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((module) => (
-            <button
+            // TODO: wrap in <Link> once module routes are registered in App.tsx
+            <div
               key={module.id}
-              disabled={!module.available}
               className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 ${
                 module.available
-                  ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8 hover:-translate-y-0.5 cursor-pointer"
-                  : "border-white/5 bg-white/2 cursor-default"
+                  ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8"
+                  : "border-white/5 bg-white/2"
               }`}
             >
               {/* Gradient overlay */}
@@ -172,7 +173,7 @@ function DashboardPage() {
                   </div>
                 )}
               </div>
-            </button>
+            </div>
           ))}
         </div>
       </main>
