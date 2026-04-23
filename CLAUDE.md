@@ -64,7 +64,7 @@ src/
 **Rules:**
 - Do not use Context API for server data — use TanStack Query.
 - Polling for `document_tasks` statuses is done via `refetchInterval` in TanStack Query.
-- `AuthContext` stores only: `isAuthenticated`, `isLoading`, `user` (from `/api/v1/auth/me`), `login()`, `logout()`, `register()`.
+- `AuthContext` is a thin adapter over `useUser()` — it exposes derived auth flags (`isAuthenticated`, `isLoading`) and actions (`login()`, `logout()`, `register()`). The `user` object is owned by TanStack Query; `AuthContext` re-exposes it but does not store server state directly.
 
 ## Authentication
 

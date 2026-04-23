@@ -14,6 +14,16 @@ interface Module {
   available: boolean
 }
 
+const PLACEHOLDER_MODULE: Omit<Module, "id"> = {
+  title: "Скоро",
+  description: "Модуль в разработке",
+  icon: <Plus className="h-7 w-7" />,
+  accent: "from-white/5 to-white/0",
+  glow: "bg-white/10",
+  orb: "bg-white/5",
+  available: false,
+}
+
 const MODULES: Module[] = [
   {
     id: "depersonalization",
@@ -45,36 +55,9 @@ const MODULES: Module[] = [
     orb: "bg-amber-600/20",
     available: true,
   },
-  {
-    id: "todo-4",
-    title: "Скоро",
-    description: "Модуль в разработке",
-    icon: <Plus className="h-7 w-7" />,
-    accent: "from-white/5 to-white/0",
-    glow: "bg-white/10",
-    orb: "bg-white/5",
-    available: false,
-  },
-  {
-    id: "todo-5",
-    title: "Скоро",
-    description: "Модуль в разработке",
-    icon: <Plus className="h-7 w-7" />,
-    accent: "from-white/5 to-white/0",
-    glow: "bg-white/10",
-    orb: "bg-white/5",
-    available: false,
-  },
-  {
-    id: "todo-6",
-    title: "Скоро",
-    description: "Модуль в разработке",
-    icon: <Plus className="h-7 w-7" />,
-    accent: "from-white/5 to-white/0",
-    glow: "bg-white/10",
-    orb: "bg-white/5",
-    available: false,
-  },
+  { ...PLACEHOLDER_MODULE, id: "todo-4" },
+  { ...PLACEHOLDER_MODULE, id: "todo-5" },
+  { ...PLACEHOLDER_MODULE, id: "todo-6" },
 ]
 
 function DashboardPage() {

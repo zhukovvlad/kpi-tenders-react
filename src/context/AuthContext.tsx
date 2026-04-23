@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, type ReactNode } from "react"
+import { createContext, useCallback, useEffect, useRef, type ReactNode } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { isAxiosError } from "axios"
@@ -33,9 +33,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const { data: user, isLoading, error } = useUser()
 
+  const handled401Ref = useRef(false)
+
   useEffect(() => {
+    if (!error) {
+      handled401Ref.current = false
+      return
+    }
     if (!isAxiosError(error) || error.response?.status !== 401) return
     if (location.pathname === "/") return
+    if (handled401Ref.current) return
+
+    handled401Ref.current = true
 
     const message: string = error.response?.data?.message ?? ""
     if (message.toLowerCase().includes("unavailable")) {
@@ -62,10 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
-    await authApi.logout()
-    queryClient.clear()
-    logger.info("User logged out")
-    navigate("/")
+    try {
+      await authApi.logout()
+    } finally {
+      queryClient.clear()
+      logger.info("User logged out")
+      navigate("/")
+    }
   }, [queryClient, navigate])
 
   const register = useCallback(

@@ -8,7 +8,15 @@ import { useAuth } from "@/hooks/useAuth"
 import LandingPage from "@/pages/LandingPage"
 import DashboardPage from "@/pages/DashboardPage"
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 function AppRoutes() {
   const { isLoading } = useAuth()
