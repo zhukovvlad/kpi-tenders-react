@@ -125,7 +125,9 @@ function DashboardPage() {
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((module) => {
             const cardClass = cn(
-              "group relative overflow-hidden rounded-2xl border text-left transition-all duration-300",
+              // `block` ensures <Link> (rendered as <a>, which is inline) fills the
+              // grid cell and its absolute overlays are positioned correctly.
+              "block group relative overflow-hidden rounded-2xl border text-left transition-all duration-300",
               module.available
                 ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8"
                 : "border-white/5 bg-white/2",

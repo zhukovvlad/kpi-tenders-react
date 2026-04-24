@@ -116,8 +116,20 @@ function FileRow({
 }) {
   const viewMutation = useMutation({
     mutationFn: () => documentsApi.getPresignedUrl(doc.id, false),
-    onSuccess: (url) => window.open(url, "_blank", "noopener,noreferrer"),
-    onError: () => toast.error(`Не удалось открыть «${doc.file_name}»`),
+    // Open a blank window synchronously on the user gesture so browsers don't
+    // treat the later window.open (after an async response) as a popup.
+    onMutate: () => ({ previewWindow: window.open("", "_blank", "noopener,noreferrer") }),
+    onSuccess: (url, _, context) => {
+      if (context?.previewWindow) {
+        context.previewWindow.location.href = url
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer")
+      }
+    },
+    onError: (_, __, context) => {
+      context?.previewWindow?.close()
+      toast.error(`Не удалось открыть «${doc.file_name}»`)
+    },
   })
 
   const downloadMutation = useMutation({
@@ -205,7 +217,15 @@ function FileRow({
 // StagedFileRow — file queued for upload (not yet sent)
 // ---------------------------------------------------------------------------
 
-function StagedFileRow({ entry, onRemove }: { entry: StagedFile; onRemove: (id: string) => void }) {
+function StagedFileRow({
+  entry,
+  onRemove,
+  isUploading,
+}: {
+  entry: StagedFile
+  onRemove: (id: string) => void
+  isUploading: boolean
+}) {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-white/8 bg-white/3 px-4 py-2.5">
       <File className="h-4 w-4 shrink-0 text-indigo-400/60" />
@@ -215,7 +235,8 @@ function StagedFileRow({ entry, onRemove }: { entry: StagedFile; onRemove: (id: 
       </div>
       <button
         onClick={() => onRemove(entry.id)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white/25 transition-colors hover:bg-white/8 hover:text-white/60"
+        disabled={isUploading}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white/25 transition-colors hover:bg-white/8 hover:text-white/60 disabled:cursor-not-allowed disabled:opacity-30"
         aria-label="Убрать из очереди"
       >
         <X className="h-3.5 w-3.5" />
@@ -359,33 +380,49 @@ function DocumentsPage() {
     },
   })
 
-  const handleStage = useCallback((files: File[]) => {
-    setStaged((prev) => [
-      ...prev,
-      ...files.map((file) => ({ id: crypto.randomUUID(), file })),
-    ])
-  }, [])
+  const handleStage = useCallback(
+    (files: File[]) => {
+      if (isUploading) return
+      setStaged((prev) => [
+        ...prev,
+        ...files.map((file) => ({ id: crypto.randomUUID(), file })),
+      ])
+    },
+    [isUploading],
+  )
 
-  const handleRemoveStaged = useCallback((id: string) => {
-    setStaged((prev) => prev.filter((e) => e.id !== id))
-  }, [])
+  const handleRemoveStaged = useCallback(
+    (id: string) => {
+      if (isUploading) return
+      setStaged((prev) => prev.filter((e) => e.id !== id))
+    },
+    [isUploading],
+  )
 
   const handleUploadConfirm = useCallback(async () => {
     setIsUploading(true)
-    const results = await Promise.allSettled(staged.map((e) => documentsApi.upload(e.file)))
-    const failed: StagedFile[] = []
-    results.forEach((result, i) => {
-      if (result.status === "fulfilled") {
-        toast.success(`Файл «${result.value.file_name}» загружен`)
-      } else {
-        logger.error("Upload failed", { err: result.reason })
-        toast.error(`Не удалось загрузить «${staged[i].file.name}»`)
-        failed.push(staged[i])
-      }
-    })
-    await queryClient.invalidateQueries({ queryKey: ["documents"] })
-    setStaged(failed)
-    setIsUploading(false)
+    // Capture a snapshot so index-based mapping stays consistent even if React
+    // schedules a state update while uploads are in-flight.
+    const snapshot = staged
+    try {
+      const results = await Promise.allSettled(snapshot.map((e) => documentsApi.upload(e.file)))
+      const failed: StagedFile[] = []
+      results.forEach((result, i) => {
+        const entry = snapshot[i]
+        if (!entry) return
+        if (result.status === "fulfilled") {
+          toast.success(`Файл «${result.value.file_name}» загружен`)
+        } else {
+          logger.error("Upload failed", { err: result.reason })
+          toast.error(`Не удалось загрузить «${entry.file.name}»`)
+          failed.push(entry)
+        }
+      })
+      await queryClient.invalidateQueries({ queryKey: ["documents"] })
+      setStaged(failed)
+    } finally {
+      setIsUploading(false)
+    }
   }, [staged, queryClient])
 
   const handleRequestDelete = useCallback((doc: Document) => {
@@ -455,7 +492,7 @@ function DocumentsPage() {
 
             <div className="flex flex-col gap-2">
               {staged.map((entry) => (
-                <StagedFileRow key={entry.id} entry={entry} onRemove={handleRemoveStaged} />
+                <StagedFileRow key={entry.id} entry={entry} onRemove={handleRemoveStaged} isUploading={isUploading} />
               ))}
             </div>
 

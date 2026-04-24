@@ -5,7 +5,13 @@ export const documentsApi = {
   upload(file: File): Promise<Document> {
     const form = new FormData()
     form.append("file", file)
-    return apiClient.post<Document>("/api/v1/documents/upload", form).then((res) => res.data)
+    return apiClient
+      .post<Document>("/api/v1/documents/upload", form, {
+        // Explicitly clear the instance-level Content-Type so the browser can
+        // set multipart/form-data with the correct boundary for FormData.
+        headers: { "Content-Type": undefined },
+      })
+      .then((res) => res.data)
   },
 
   list: (): Promise<Document[]> =>
