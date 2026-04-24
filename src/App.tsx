@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { useAuth } from "@/hooks/useAuth"
 import LandingPage from "@/pages/LandingPage"
 import DashboardPage from "@/pages/DashboardPage"
+import DocumentsPage from "@/pages/DocumentsPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/documents"
+        element={
+          <ProtectedRoute>
+            <DocumentsPage />
           </ProtectedRoute>
         }
       />
