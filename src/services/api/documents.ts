@@ -5,11 +5,7 @@ export const documentsApi = {
   upload(file: File): Promise<Document> {
     const form = new FormData()
     form.append("file", file)
-    return apiClient
-      .post<Document>("/api/v1/documents/upload", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      .then((res) => res.data)
+    return apiClient.post<Document>("/api/v1/documents/upload", form).then((res) => res.data)
   },
 
   list: (): Promise<Document[]> =>

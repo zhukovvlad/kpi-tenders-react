@@ -21,20 +21,27 @@ import { logger } from "@/lib/logger"
 // ---------------------------------------------------------------------------
 
 function formatBytes(bytes: number | null): string {
-  if (bytes === null || bytes === 0) return "—"
+  if (bytes === null) return "—"
+  if (bytes === 0) return "0 B"
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("ru-RU", {
+  return new Date(iso).toLocaleString("ru-RU", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   })
+}
+
+function getRussianFileWord(n: number): string {
+  const rule = new Intl.PluralRules("ru").select(n)
+  const words: Record<string, string> = { one: "файл", few: "файла", many: "файлов", other: "файлов" }
+  return words[rule] ?? "файлов"
 }
 
 // ---------------------------------------------------------------------------
@@ -107,38 +114,24 @@ function FileRow({
   onRequestDelete: (doc: Document) => void
   isDeleting: boolean
 }) {
-  const [isLoadingView, setIsLoadingView] = useState(false)
-  const [isLoadingDownload, setIsLoadingDownload] = useState(false)
+  const viewMutation = useMutation({
+    mutationFn: () => documentsApi.getPresignedUrl(doc.id, false),
+    onSuccess: (url) => window.open(url, "_blank", "noopener,noreferrer"),
+    onError: () => toast.error(`Не удалось открыть «${doc.file_name}»`),
+  })
 
-  const handleView = useCallback(async () => {
-    setIsLoadingView(true)
-    try {
-      const url = await documentsApi.getPresignedUrl(doc.id, false)
-      window.open(url, "_blank", "noopener,noreferrer")
-    } catch {
-      toast.error(`Не удалось открыть «${doc.file_name}»`)
-    } finally {
-      setIsLoadingView(false)
-    }
-  }, [doc.id, doc.file_name])
-
-  const handleDownload = useCallback(async () => {
-    setIsLoadingDownload(true)
-    try {
-      const url = await documentsApi.getPresignedUrl(doc.id, true)
-      // Use hidden <a> to trigger download without navigating away
+  const downloadMutation = useMutation({
+    mutationFn: () => documentsApi.getPresignedUrl(doc.id, true),
+    onSuccess: (url) => {
       const a = document.createElement("a")
       a.href = url
       a.download = doc.file_name
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-    } catch {
-      toast.error(`Не удалось скачать «${doc.file_name}»`)
-    } finally {
-      setIsLoadingDownload(false)
-    }
-  }, [doc.id, doc.file_name])
+    },
+    onError: () => toast.error(`Не удалось скачать «${doc.file_name}»`),
+  })
 
   return (
     <div className="group flex items-center gap-4 rounded-xl border border-white/8 bg-white/4 px-4 py-3 transition-colors hover:border-white/15 hover:bg-white/6">
@@ -162,17 +155,17 @@ function FileRow({
         </span>
       )}
 
-      {/* Actions — visible on hover */}
-      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+      {/* Actions — visible on hover and when focused within */}
+      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
         {/* View in browser */}
         <button
-          onClick={handleView}
-          disabled={isLoadingView || isLoadingDownload}
+          onClick={() => viewMutation.mutate()}
+          disabled={viewMutation.isPending || downloadMutation.isPending}
           title="Просмотреть в браузере"
           className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 transition-colors hover:bg-indigo-500/15 hover:text-indigo-400 disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Просмотреть файл"
         >
-          {isLoadingView ? (
+          {viewMutation.isPending ? (
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-indigo-400" />
           ) : (
             <Eye className="h-4 w-4" />
@@ -181,13 +174,13 @@ function FileRow({
 
         {/* Download */}
         <button
-          onClick={handleDownload}
-          disabled={isLoadingView || isLoadingDownload}
+          onClick={() => downloadMutation.mutate()}
+          disabled={viewMutation.isPending || downloadMutation.isPending}
           title="Скачать файл"
           className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 transition-colors hover:bg-violet-500/15 hover:text-violet-400 disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Скачать файл"
         >
-          {isLoadingDownload ? (
+          {downloadMutation.isPending ? (
             <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-violet-400" />
           ) : (
             <Download className="h-4 w-4" />
@@ -235,6 +228,8 @@ function StagedFileRow({ entry, onRemove }: { entry: StagedFile; onRemove: (id: 
 // DropZone — drag-and-drop area (stages files, does NOT upload immediately)
 // ---------------------------------------------------------------------------
 
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
+
 function DropZone({ onStage }: { onStage: (files: File[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -248,23 +243,38 @@ function DropZone({ onStage }: { onStage: (files: File[]) => void }) {
     setIsDragging(false)
   }, [])
 
+  const filterBySize = useCallback(
+    (files: File[]): File[] => {
+      const valid: File[] = []
+      for (const f of files) {
+        if (f.size > MAX_FILE_SIZE) {
+          toast.error(`«${f.name}» превышает лимит 100 МБ`)
+        } else {
+          valid.push(f)
+        }
+      }
+      return valid
+    },
+    [],
+  )
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
       setIsDragging(false)
-      const files = Array.from(e.dataTransfer.files)
+      const files = filterBySize(Array.from(e.dataTransfer.files))
       if (files.length > 0) onStage(files)
     },
-    [onStage],
+    [onStage, filterBySize],
   )
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? [])
+      const files = filterBySize(Array.from(e.target.files ?? []))
       if (files.length > 0) onStage(files)
       e.target.value = ""
     },
-    [onStage],
+    [onStage, filterBySize],
   )
 
   return (
@@ -333,16 +343,7 @@ function DocumentsPage() {
     queryFn: documentsApi.list,
   })
 
-  const uploadMutation = useMutation({
-    mutationFn: documentsApi.upload,
-    onSuccess: (doc) => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] })
-      toast.success(`Файл «${doc.file_name}» загружен`)
-    },
-    onError: (err) => {
-      logger.error("Upload failed", { err })
-    },
-  })
+  const [isUploading, setIsUploading] = useState(false)
 
   const deleteMutation = useMutation({
     mutationFn: documentsApi.delete,
@@ -353,6 +354,7 @@ function DocumentsPage() {
     },
     onError: (err) => {
       logger.error("Delete failed", { err })
+      toast.error("Не удалось удалить файл")
       setDocToDelete(null)
     },
   })
@@ -368,12 +370,23 @@ function DocumentsPage() {
     setStaged((prev) => prev.filter((e) => e.id !== id))
   }, [])
 
-  const handleUploadConfirm = useCallback(() => {
-    for (const entry of staged) {
-      uploadMutation.mutate(entry.file)
-    }
-    setStaged([])
-  }, [staged, uploadMutation])
+  const handleUploadConfirm = useCallback(async () => {
+    setIsUploading(true)
+    const results = await Promise.allSettled(staged.map((e) => documentsApi.upload(e.file)))
+    const failed: StagedFile[] = []
+    results.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        toast.success(`Файл «${result.value.file_name}» загружен`)
+      } else {
+        logger.error("Upload failed", { err: result.reason })
+        toast.error(`Не удалось загрузить «${staged[i].file.name}»`)
+        failed.push(staged[i])
+      }
+    })
+    await queryClient.invalidateQueries({ queryKey: ["documents"] })
+    setStaged(failed)
+    setIsUploading(false)
+  }, [staged, queryClient])
 
   const handleRequestDelete = useCallback((doc: Document) => {
     setDocToDelete(doc)
@@ -437,7 +450,7 @@ function DocumentsPage() {
           <div className="mt-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
             <p className="mb-3 text-xs font-medium uppercase tracking-wider text-indigo-400/70">
               Ожидает загрузки — {staged.length}{" "}
-              {staged.length === 1 ? "файл" : staged.length < 5 ? "файла" : "файлов"}
+              {getRussianFileWord(staged.length)}
             </p>
 
             <div className="flex flex-col gap-2">
@@ -452,7 +465,7 @@ function DocumentsPage() {
                 size="sm"
                 className="text-white/40 hover:text-white/70 hover:bg-white/8"
                 onClick={() => setStaged([])}
-                disabled={uploadMutation.isPending}
+                disabled={isUploading}
               >
                 Очистить
               </Button>
@@ -460,10 +473,12 @@ function DocumentsPage() {
                 size="sm"
                 className="bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50"
                 onClick={handleUploadConfirm}
-                disabled={uploadMutation.isPending}
+                disabled={isUploading}
               >
                 <Upload className="mr-2 h-3.5 w-3.5" />
-                {uploadMutation.isPending ? "Загрузка…" : `Загрузить ${staged.length === 1 ? "файл" : "файлы"}`}
+                {isUploading
+                  ? "Загрузка…"
+                  : `Загрузить ${staged.length > 1 ? `${staged.length} ` : ""}${getRussianFileWord(staged.length)}`}
               </Button>
             </div>
           </div>

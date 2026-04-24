@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { LogOut, Bell, User, ShieldCheck, BarChart3, TrendingUp, Plus, FolderUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
+import { cn } from "@/lib/utils"
 
 interface Module {
   id: string
@@ -123,11 +124,12 @@ function DashboardPage() {
         {/* Modules grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((module) => {
-            const cardClass = `group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 ${
+            const cardClass = cn(
+              "group relative overflow-hidden rounded-2xl border text-left transition-all duration-300",
               module.available
                 ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8"
-                : "border-white/5 bg-white/2"
-            }`
+                : "border-white/5 bg-white/2",
+            )
 
             const inner = (
               <>
