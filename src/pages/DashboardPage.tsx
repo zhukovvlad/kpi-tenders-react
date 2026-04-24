@@ -1,7 +1,9 @@
 import type { ReactNode } from "react"
-import { LogOut, Bell, User, ShieldCheck, BarChart3, TrendingUp, Plus } from "lucide-react"
+import { Link } from "react-router-dom"
+import { LogOut, Bell, User, ShieldCheck, BarChart3, TrendingUp, Plus, FolderUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
+import { cn } from "@/lib/utils"
 
 interface Module {
   id: string
@@ -12,6 +14,7 @@ interface Module {
   glow: string
   orb: string
   available: boolean
+  href?: string
 }
 
 const PLACEHOLDER_MODULE: Omit<Module, "id"> = {
@@ -55,7 +58,17 @@ const MODULES: Module[] = [
     orb: "bg-amber-600/20",
     available: true,
   },
-  { ...PLACEHOLDER_MODULE, id: "todo-4" },
+  {
+    id: "documents",
+    title: "Загрузка документов",
+    description: "Загрузка тендерной документации в хранилище для последующей обработки модулями анализа",
+    icon: <FolderUp className="h-7 w-7" />,
+    accent: "from-emerald-500/20 to-teal-600/10",
+    glow: "bg-emerald-500/30",
+    orb: "bg-emerald-600/20",
+    available: true,
+    href: "/documents",
+  },
   { ...PLACEHOLDER_MODULE, id: "todo-5" },
   { ...PLACEHOLDER_MODULE, id: "todo-6" },
 ]
@@ -110,54 +123,71 @@ function DashboardPage() {
 
         {/* Modules grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((module) => (
-            // TODO: wrap in <Link> once module routes are registered in App.tsx
-            <div
-              key={module.id}
-              className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 ${
-                module.available
-                  ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8"
-                  : "border-white/5 bg-white/2"
-              }`}
-            >
-              {/* Gradient overlay */}
-              <div className={`absolute inset-0 bg-linear-to-br ${module.accent} pointer-events-none`} />
+          {MODULES.map((module) => {
+            const cardClass = cn(
+              // `block` ensures <Link> (rendered as <a>, which is inline) fills the
+              // grid cell and its absolute overlays are positioned correctly.
+              "block group relative overflow-hidden rounded-2xl border text-left transition-all duration-300",
+              module.available
+                ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8"
+                : "border-white/5 bg-white/2",
+            )
 
-              {/* Decorative orb inside card */}
-              <div className={`absolute -top-6 -right-6 h-24 w-24 rounded-full ${module.orb} blur-2xl pointer-events-none`} />
+            const inner = (
+              <>
+                {/* Gradient overlay */}
+                <div className={`absolute inset-0 bg-linear-to-br ${module.accent} pointer-events-none`} />
 
-              <div className="relative p-6">
-                {/* Icon container */}
-                <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl ${module.glow} backdrop-blur-sm ${module.available ? "text-white" : "text-white/20"}`}>
-                  {module.icon}
-                </div>
+                {/* Decorative orb inside card */}
+                <div className={`absolute -top-6 -right-6 h-24 w-24 rounded-full ${module.orb} blur-2xl pointer-events-none`} />
 
-                {/* Coming soon badge */}
-                {!module.available && (
-                  <span className="absolute top-5 right-5 rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/20">
-                    Скоро
-                  </span>
-                )}
-
-                <h2 className={`mb-2 text-base font-semibold ${module.available ? "text-white" : "text-white/20"}`}>
-                  {module.title}
-                </h2>
-                <p className={`text-sm leading-relaxed ${module.available ? "text-white/50" : "text-white/15"}`}>
-                  {module.description}
-                </p>
-
-                {/* Arrow hint on hover */}
-                {module.available && (
-                  <div className="mt-5 flex items-center gap-1.5 text-xs font-medium text-indigo-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    Открыть модуль
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                <div className="relative p-6">
+                  {/* Icon container */}
+                  <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl ${module.glow} backdrop-blur-sm ${module.available ? "text-white" : "text-white/20"}`}>
+                    {module.icon}
                   </div>
-                )}
+
+                  {/* Coming soon badge */}
+                  {!module.available && (
+                    <span className="absolute top-5 right-5 rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/20">
+                      Скоро
+                    </span>
+                  )}
+
+                  <h2 className={`mb-2 text-base font-semibold ${module.available ? "text-white" : "text-white/20"}`}>
+                    {module.title}
+                  </h2>
+                  <p className={`text-sm leading-relaxed ${module.available ? "text-white/50" : "text-white/15"}`}>
+                    {module.description}
+                  </p>
+
+                  {/* Arrow hint on hover */}
+                  {module.available && (
+                    <div className="mt-5 flex items-center gap-1.5 text-xs font-medium text-indigo-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                      Открыть модуль
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </>
+            )
+
+            if (module.available && module.href) {
+              return (
+                <Link key={module.id} to={module.href} className={cardClass}>
+                  {inner}
+                </Link>
+              )
+            }
+
+            return (
+              <div key={module.id} className={cardClass}>
+                {inner}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </main>
     </div>
