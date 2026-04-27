@@ -1,4 +1,5 @@
 import { useState } from "react"
+import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
@@ -163,7 +164,7 @@ function DownloadButton({
 }: {
   documentId: string
   label: string
-  icon: React.ReactNode
+  icon: ReactNode
 }) {
   const [isLoading, setIsLoading] = useState(false)
 
@@ -179,6 +180,11 @@ function DownloadButton({
       document.body.removeChild(a)
     } catch (err) {
       logger.error("Failed to fetch presigned URL", { documentId, err })
+      // Show toast only for network-level errors; HTTP 4xx/5xx are caught
+      // by the Axios interceptor in client.ts to avoid duplicate toasts.
+      if (!(err instanceof Error && "response" in err)) {
+        toast.error("Не удалось скачать файл")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -400,12 +406,12 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
           </Button>
         )}
 
-        {!hasStarted && (
+        {!hasStarted && !isLoadingTasks && (
           <Button
             size="sm"
             className="h-8 gap-1.5 bg-violet-600/80 px-3 text-white hover:bg-violet-600 disabled:opacity-50"
             onClick={() => startMutation.mutate()}
-            disabled={startMutation.isPending}
+            disabled={startMutation.isPending || isLoadingTasks}
           >
             {startMutation.isPending ? (
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white" />
