@@ -340,21 +340,24 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
     },
   })
 
+  const getModuleLabel = (module: TaskModule) =>
+    module === "convert" ? "Конвертация" : "Анонимизация"
+
   const startMutation = useMutation({
     mutationFn: (module: TaskModule) => tasksApi.start(doc.id, module),
-    onSuccess: () => {
+    onSuccess: (_data, module) => {
       queryClient.invalidateQueries({ queryKey: ["tasks", doc.id] })
-      toast.success(`Анонимизация «${doc.file_name}» запущена`)
+      toast.success(`${getModuleLabel(module)} «${doc.file_name}» запущена`)
     },
-    onError: (err) => {
-      logger.error("Failed to start anonymization", { docId: doc.id, err })
+    onError: (err, module) => {
+      logger.error(`Failed to start ${module}`, { docId: doc.id, err })
       // Show fallback toast for statuses not covered by the global interceptor
       // (interceptor handles 400/403/5xx) and for network/non-Axios errors.
       const status = axios.isAxiosError(err) ? err.response?.status : undefined
       const handledByInterceptor =
         status === 400 || status === 403 || (status != null && status >= 500)
       if (!handledByInterceptor) {
-        toast.error(`Не удалось запустить анонимизацию «${doc.file_name}»`)
+        toast.error(`Не удалось запустить ${getModuleLabel(module).toLowerCase()} «${doc.file_name}»`)
       }
     },
   })
