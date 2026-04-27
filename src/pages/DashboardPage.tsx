@@ -37,6 +37,7 @@ const MODULES: Module[] = [
     glow: "bg-violet-500/30",
     orb: "bg-violet-600/20",
     available: true,
+    href: "/anonymization",
   },
   {
     id: "key-params",

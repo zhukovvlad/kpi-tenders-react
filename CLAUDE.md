@@ -30,26 +30,39 @@ src/
 ├── components/          # Reusable UI components
 │   └── ui/             # shadcn/ui primitives (do not modify manually)
 ├── context/            # Global React context (auth session, theme, sidebar)
-├── hooks/              # Custom hooks (useAuth, future: useToast, etc.)
+├── hooks/              # Custom hooks (useAuth, useUser)
 ├── pages/              # Route-level page components
+│   ├── LandingPage.tsx
+│   ├── DashboardPage.tsx
+│   ├── DocumentsPage.tsx
+│   └── AnonymizationPage.tsx
 ├── services/
 │   └── api/
-│       ├── client.ts   # Axios instance (base URL, cookies, interceptors)
-│       └── auth.ts     # Auth API methods
+│       ├── client.ts       # Axios instance (base URL, cookies, interceptors)
+│       ├── auth.ts         # Auth API methods
+│       ├── documents.ts    # Documents CRUD + presigned URL
+│       └── tasks.ts        # Tasks API (getByDocument, start)
+├── types/
+│   ├── auth.ts             # User, AuthContextValue
+│   ├── document.ts         # Document, ArtifactKind
+│   └── task.ts             # Task, TaskModule, TaskStatus, TaskResultPayload
 ├── lib/
-│   └── utils.ts        # cn() helper (clsx + tailwind-merge)
-└── App.tsx             # BrowserRouter + Routes
+│   ├── utils.ts            # cn() helper (clsx + tailwind-merge)
+│   └── logger.ts           # Centralized logger
+└── App.tsx                 # BrowserRouter + Routes
 ```
 
 ## Routing
 
 ```
-/                  — LandingPage (public)
-/dashboard         — Dashboard (protected)
+/                     — LandingPage (public)
+/dashboard            — DashboardPage (protected)
+/documents            — DocumentsPage (protected)
+/anonymization        — AnonymizationPage (protected)
 ```
 
 > Planned (not yet registered in `App.tsx`):
-> `/login`, `/register`, `/sites`, `/sites/:id`, `/tasks`, `/users`, `/profile`
+> `/login`, `/register`, `/sites`, `/sites/:id`, `/users`, `/profile`
 
 **Protected routes** use `<ProtectedRoute>`. Add new protected routes via the same wrapper — never add auth checks inside page components.
 
@@ -196,3 +209,50 @@ The backend enforces tenant isolation via `organization_id`. The frontend:
 - Never constructs API URLs with `org_id` manually — it is extracted from the JWT on the backend.
 - `org_id` is available in `AuthContext` via `user.org_id` for display purposes only.
 - Never pass `org_id` as a request body field — the backend derives it from the token.
+
+## Documents & Artifacts
+
+**Document** (`src/types/document.ts`) — base upload unit. Two kinds:
+- `artifact_kind === null` — user-uploaded file. Shown in `DocumentsPage`.
+- `artifact_kind !== null` — processing artifact (`convert_md`, `anonymize_doc`, `anonymize_entities`). Has `parent_id` pointing to the source document. **Never shown in `DocumentsPage`** (backend filters `WHERE parent_id IS NULL`).
+
+**Artifact access**:
+- `GET /api/v1/documents?parent_id=:uuid` — fetch artifacts of a document
+- `GET /api/v1/documents/:id/url?download=true` — presigned MinIO URL for download
+
+**`TaskResultPayload`** (`src/types/task.ts`) stores artifact document UUIDs, not storage paths:
+
+```ts
+export interface TaskResultPayload {
+  // convert worker
+  md_document_id?: string
+  char_count?: number
+  section_count?: number
+  // anonymize worker
+  anonymized_document_id?: string
+  entities_map_document_id?: string
+  entity_count?: number
+}
+```
+
+**Download pattern** — always via `documentsApi.getPresignedUrl(documentId, true)`:
+```ts
+const url = await documentsApi.getPresignedUrl(documentId, true)
+const a = document.createElement('a')
+a.href = url
+a.rel = 'noopener noreferrer'
+a.click()
+```
+
+Never call `tasksApi.getResultUrl` — it was removed. Never use raw `storage_path` for downloads.
+
+## Tasks API
+
+`src/services/api/tasks.ts` — two methods only:
+
+```ts
+tasksApi.getByDocument(documentId)  // GET /api/v1/tasks?document_id=:id
+tasksApi.start(documentId, moduleName)  // POST /api/v1/tasks
+```
+
+Task polling is done via TanStack Query `refetchInterval` callback — stop polling when `status === 'completed' || status === 'failed'`.
