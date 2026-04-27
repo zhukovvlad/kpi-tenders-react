@@ -78,6 +78,14 @@ function getDocumentWord(n: number): string {
   return map[rule] ?? "документов"
 }
 
+// Inserts a suffix before the file extension so the user gets a meaningful
+// filename: buildDownloadName("contract.docx", "anonymized") → "contract_anonymized.docx"
+function buildDownloadName(originalName: string, suffix: string): string {
+  const dot = originalName.lastIndexOf(".")
+  if (dot === -1) return `${originalName}_${suffix}`
+  return `${originalName.slice(0, dot)}_${suffix}${originalName.slice(dot)}`
+}
+
 // ---------------------------------------------------------------------------
 // StageChip — single pipeline stage with status indicator
 // ---------------------------------------------------------------------------
@@ -164,11 +172,12 @@ interface ResultDialogProps {
 
 interface DownloadButtonProps {
   documentId: string
+  fileName: string
   label: string
   icon: ReactNode
 }
 
-function DownloadButton({ documentId, label, icon }: DownloadButtonProps) {
+function DownloadButton({ documentId, fileName, label, icon }: DownloadButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleDownload = async () => {
@@ -177,7 +186,7 @@ function DownloadButton({ documentId, label, icon }: DownloadButtonProps) {
       const url = await documentsApi.getPresignedUrl(documentId, true)
       const a = document.createElement("a")
       a.href = url
-      a.download = ""
+      a.download = fileName
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -281,6 +290,7 @@ function ResultDialog({ doc, anonymizeTask, isOpen, onClose }: ResultDialogProps
                 {anonDocId && (
                   <DownloadButton
                     documentId={anonDocId}
+                    fileName={buildDownloadName(doc.file_name, "anonymized")}
                     label="Анонимизированный файл"
                     icon={<Download className="h-3.5 w-3.5" />}
                   />
@@ -288,6 +298,7 @@ function ResultDialog({ doc, anonymizeTask, isOpen, onClose }: ResultDialogProps
                 {entitiesMapDocId && (
                   <DownloadButton
                     documentId={entitiesMapDocId}
+                    fileName={buildDownloadName(doc.file_name, "entities")}
                     label="Карта сущностей"
                     icon={<Map className="h-3.5 w-3.5" />}
                   />
