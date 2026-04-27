@@ -65,6 +65,17 @@ function getEntityWord(n: number): string {
   return map[rule] ?? "сущностей"
 }
 
+function getDocumentWord(n: number): string {
+  const rule = new Intl.PluralRules("ru").select(n)
+  const map: Record<string, string> = {
+    one: "документ",
+    few: "документа",
+    many: "документов",
+    other: "документов",
+  }
+  return map[rule] ?? "документов"
+}
+
 // ---------------------------------------------------------------------------
 // StageChip — single pipeline stage with status indicator
 // ---------------------------------------------------------------------------
@@ -162,10 +173,12 @@ function DownloadButton({
       const url = await documentsApi.getPresignedUrl(documentId, true)
       const a = document.createElement("a")
       a.href = url
-      a.rel = "noopener noreferrer"
+      a.download = ""
+      document.body.appendChild(a)
       a.click()
-    } catch {
-      toast.error("Не удалось получить ссылку для скачивания")
+      document.body.removeChild(a)
+    } catch (err) {
+      logger.error("Failed to fetch presigned URL", { documentId, err })
     } finally {
       setIsLoading(false)
     }
@@ -287,13 +300,19 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
     queryKey: ["tasks", doc.id],
     queryFn: () => tasksApi.getByDocument(doc.id),
     staleTime: 0,
-    // Poll at 3 s while any task is active; stop when all are settled.
+    // Poll at 3 s while any task is active or while convert is done but
+    // anonymize hasn't been created yet (backend creates it asynchronously).
     refetchInterval: (query) => {
       const data = query.state.data as Task[] | undefined
-      const hasActive = data?.some(
+      if (!data || data.length === 0) return false
+      const hasActive = data.some(
         (t) => t.status === "pending" || t.status === "processing",
       )
-      return hasActive ? 3000 : false
+      if (hasActive) return 3000
+      const convertTask = data.find((t) => t.module_name === "convert")
+      const anonymizeTask = data.find((t) => t.module_name === "anonymize")
+      if (convertTask?.status === "completed" && !anonymizeTask) return 3000
+      return false
     },
   })
 
@@ -304,13 +323,18 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
       toast.success(`Анонимизация «${doc.file_name}» запущена`)
     },
     onError: (err) => {
+      // Global Axios interceptor handles user-facing toast for 4xx/5xx.
       logger.error("Failed to start anonymization", { docId: doc.id, err })
-      toast.error("Не удалось запустить анонимизацию")
     },
   })
 
-  const convertTask = tasks.find((t) => t.module_name === "convert")
-  const anonymizeTask = tasks.find((t) => t.module_name === "anonymize")
+  const latestByModule = (m: string) =>
+    tasks
+      .filter((t) => t.module_name === m)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+
+  const convertTask = latestByModule("convert")
+  const anonymizeTask = latestByModule("anonymize")
 
   const convertStatus: StageStatus = convertTask?.status ?? "idle"
   const anonymizeStatus: StageStatus = anonymizeTask?.status ?? "idle"
@@ -524,15 +548,14 @@ function AnonymizationPage() {
               <File className="h-6 w-6 text-white/20" />
             </div>
             <p className="text-sm text-white/40">Нет загруженных документов</p>
-            <Link to="/documents">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white"
-              >
-                Загрузить документы
-              </Button>
-            </Link>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white"
+            >
+              <Link to="/documents">Загрузить документы</Link>
+            </Button>
           </div>
         )}
 
@@ -541,18 +564,19 @@ function AnonymizationPage() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="text-xs text-white/30">
-                {documents.length} {documents.length === 1 ? "документ" : documents.length < 5 ? "документа" : "документов"}
+                {documents.length} {getDocumentWord(documents.length)}
               </p>
-              <Link to="/documents">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1.5 border border-white/8 bg-white/3 px-3 text-xs text-white/40 hover:border-white/15 hover:bg-white/6 hover:text-white/70"
-                >
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 border border-white/8 bg-white/3 px-3 text-xs text-white/40 hover:border-white/15 hover:bg-white/6 hover:text-white/70"
+              >
+                <Link to="/documents">
                   <FileText className="h-3 w-3" />
                   Загрузить документы
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
             {documents.map((doc) => (
               <DocumentAnonymizationRow key={doc.id} doc={doc} onPreview={handlePreview} />
