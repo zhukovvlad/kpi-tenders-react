@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { ReactNode } from "react"
+import axios from "axios"
 import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
@@ -180,9 +181,12 @@ function DownloadButton({
       document.body.removeChild(a)
     } catch (err) {
       logger.error("Failed to fetch presigned URL", { documentId, err })
-      // Show toast only for network-level errors; HTTP 4xx/5xx are caught
-      // by the Axios interceptor in client.ts to avoid duplicate toasts.
-      if (!(err instanceof Error && "response" in err)) {
+      // Show toast only for non-HTTP errors (network, CORS, DNS).
+      // HTTP 4xx/5xx have err.response set and are already handled by the
+      // Axios interceptor in client.ts — showing a second toast there would
+      // duplicate it. AxiosError always has the "response" key present even
+      // when undefined, so we check the value, not the key.
+      if (!axios.isAxiosError(err) || err.response == null) {
         toast.error("Не удалось скачать файл")
       }
     } finally {

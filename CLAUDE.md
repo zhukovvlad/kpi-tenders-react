@@ -2,6 +2,8 @@
 
 Frontend SaaS-платформы для анализа строительных тендеров. Multi-tenant, React 19 + TypeScript + Vite.
 
+> Known technical debts are tracked in [`TECH_DEBT.md`](./TECH_DEBT.md).
+
 ## Commands
 
 ```bash
