@@ -31,7 +31,7 @@ import {
 import { documentsApi } from "@/services/api/documents"
 import { tasksApi } from "@/services/api/tasks"
 import type { Document } from "@/types/document"
-import type { Task, TaskStatus } from "@/types/task"
+import type { Task, TaskModule, TaskStatus } from "@/types/task"
 import { logger } from "@/lib/logger"
 
 // ---------------------------------------------------------------------------
@@ -181,12 +181,13 @@ function DownloadButton({
       document.body.removeChild(a)
     } catch (err) {
       logger.error("Failed to fetch presigned URL", { documentId, err })
-      // Show toast only for non-HTTP errors (network, CORS, DNS).
-      // HTTP 4xx/5xx have err.response set and are already handled by the
-      // Axios interceptor in client.ts — showing a second toast there would
-      // duplicate it. AxiosError always has the "response" key present even
-      // when undefined, so we check the value, not the key.
-      if (!axios.isAxiosError(err) || err.response == null) {
+      // The global Axios interceptor (client.ts) only shows toasts for
+      // 400, 403, and 5xx. Show a local toast for everything else so no
+      // download failure is ever silent to the user.
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined
+      const handledByInterceptor =
+        status === 400 || status === 403 || (status != null && status >= 500)
+      if (!handledByInterceptor) {
         toast.error("Не удалось скачать файл")
       }
     } finally {
@@ -333,12 +334,19 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
       toast.success(`Анонимизация «${doc.file_name}» запущена`)
     },
     onError: (err) => {
-      // Global Axios interceptor handles user-facing toast for 4xx/5xx.
       logger.error("Failed to start anonymization", { docId: doc.id, err })
+      // Show fallback toast for statuses not covered by the global interceptor
+      // (interceptor handles 400/403/5xx) and for network/non-Axios errors.
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined
+      const handledByInterceptor =
+        status === 400 || status === 403 || (status != null && status >= 500)
+      if (!handledByInterceptor) {
+        toast.error(`Не удалось запустить анонимизацию «${doc.file_name}»`)
+      }
     },
   })
 
-  const latestByModule = (m: string) =>
+  const latestByModule = (m: TaskModule) =>
     tasks
       .filter((t) => t.module_name === m)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))[0]

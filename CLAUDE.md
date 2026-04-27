@@ -242,8 +242,10 @@ export interface TaskResultPayload {
 const url = await documentsApi.getPresignedUrl(documentId, true)
 const a = document.createElement('a')
 a.href = url
-a.rel = 'noopener noreferrer'
+a.download = ''
+document.body.appendChild(a)
 a.click()
+document.body.removeChild(a)
 ```
 
 Never call `tasksApi.getResultUrl` — it was removed. Never use raw `storage_path` for downloads.
