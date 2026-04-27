@@ -90,7 +90,7 @@ interface StageChipProps {
 }
 
 function StageChip({ label, status }: StageChipProps) {
-  const styles: Record<StageStatus, { chip: string; icon: React.ReactNode }> = {
+  const styles: Record<StageStatus, { chip: string; icon: ReactNode }> = {
     idle: {
       chip: "border-white/8 bg-white/3 text-white/25",
       icon: <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/15" />,
@@ -129,7 +129,11 @@ function StageChip({ label, status }: StageChipProps) {
 // EntityBadge — entities found/hidden counter or zero-entity warning
 // ---------------------------------------------------------------------------
 
-function EntityBadge({ count }: { count: number }) {
+interface EntityBadgeProps {
+  count: number
+}
+
+function EntityBadge({ count }: EntityBadgeProps) {
   if (count === 0) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/8 px-2.5 py-1 text-xs font-medium text-amber-300">
@@ -158,15 +162,13 @@ interface ResultDialogProps {
   onClose: () => void
 }
 
-function DownloadButton({
-  documentId,
-  label,
-  icon,
-}: {
+interface DownloadButtonProps {
   documentId: string
   label: string
   icon: ReactNode
-}) {
+}
+
+function DownloadButton({ documentId, label, icon }: DownloadButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleDownload = async () => {
@@ -328,7 +330,7 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
   })
 
   const startMutation = useMutation({
-    mutationFn: () => tasksApi.start(doc.id, "convert"),
+    mutationFn: (module: TaskModule) => tasksApi.start(doc.id, module),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", doc.id] })
       toast.success(`Анонимизация «${doc.file_name}» запущена`)
@@ -366,6 +368,10 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
   const isFullyCompleted = anonymizeStatus === "completed"
   const hasFailed = convertStatus === "failed" || anonymizeStatus === "failed"
   const hasStarted = tasks.length > 0
+  const failedModule: TaskModule | null =
+    convertStatus === "failed" ? "convert" :
+    anonymizeStatus === "failed" ? "anonymize" :
+    null
 
   const entitiesCount = anonymizeTask?.result_payload?.entity_count ?? null
 
@@ -422,7 +428,7 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
           <Button
             size="sm"
             className="h-8 gap-1.5 bg-violet-600/80 px-3 text-white hover:bg-violet-600 disabled:opacity-50"
-            onClick={() => startMutation.mutate()}
+            onClick={() => startMutation.mutate("convert")}
             disabled={startMutation.isPending || isLoadingTasks}
           >
             {startMutation.isPending ? (
@@ -446,8 +452,8 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
             size="sm"
             variant="ghost"
             className="h-8 gap-1.5 border border-red-500/20 px-3 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-            onClick={() => startMutation.mutate()}
-            disabled={startMutation.isPending}
+            onClick={() => failedModule && startMutation.mutate(failedModule)}
+            disabled={startMutation.isPending || !failedModule}
           >
             <Play className="h-3.5 w-3.5" />
             Повторить
