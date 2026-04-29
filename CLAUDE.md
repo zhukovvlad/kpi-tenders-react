@@ -250,7 +250,7 @@ a.click()
 document.body.removeChild(a)
 ```
 
-Never call `tasksApi.getResultUrl` — it was removed. Never use raw `storage_path` for downloads.
+Never call `tasksApi.getResultUrl` — it was removed. `storage_path` is not part of the `Document` interface and is never returned by the API — always use presigned URLs for downloads.
 
 ## Tasks API
 

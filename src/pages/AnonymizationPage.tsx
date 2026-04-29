@@ -315,7 +315,13 @@ function DocumentAnonymizationRow({ doc, tasks, isLoadingTasks, isErrorTasks, on
 
   const startMutation = useMutation({
     mutationFn: (module: TaskModule) => tasksApi.start(doc.id, module),
-    onSuccess: (_data, module) => {
+    onSuccess: (data, module) => {
+      // Optimistically insert the new task so the row immediately reflects the
+      // started state — before the background invalidation refetch completes.
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: ["tasks", "batch"] },
+        (old) => (old ? [...old, data] : [data]),
+      )
       queryClient.invalidateQueries({ queryKey: ["tasks", "batch"] })
       toast.success(`${getModuleLabel(module)} «${doc.file_name}» запущена`)
     },
@@ -472,7 +478,7 @@ function AnonymizationPage() {
     queryFn: documentsApi.list,
   })
 
-  const { data: allTasks = [], isLoading: isLoadingTasks, isError: isErrorTasks } = useQuery({
+  const { data: allTasks = [], isLoading: isLoadingTasks, isError: isErrorTasks, refetch: refetchTasks } = useQuery({
     queryKey: ["tasks", "batch", documents.map((d) => d.id).join(",")],
     queryFn: () => tasksApi.getByDocuments(documents.map((d) => d.id)),
     enabled: documents.length > 0,
@@ -606,6 +612,21 @@ function AnonymizationPage() {
               className="border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white"
             >
               <Link to="/documents">Загрузить документы</Link>
+            </Button>
+          </div>
+        )}
+
+        {/* Tasks error banner — shown when documents loaded but task statuses failed */}
+        {!isLoading && !isError && documents.length > 0 && isErrorTasks && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+            <span>Не удалось загрузить статусы задач. Управление обработкой недоступно.</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 shrink-0 border border-red-500/20 px-3 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              onClick={() => void refetchTasks()}
+            >
+              Повторить
             </Button>
           </div>
         )}
