@@ -4,17 +4,15 @@
 
 ---
 
-## [TD-001] N+1 запросов задач на странице анонимизации · `open`
+## [TD-001] N+1 запросов задач на странице анонимизации · `resolved`
 
 **Файл:** `src/pages/AnonymizationPage.tsx`  
-**Контекст:** `DocumentAnonymizationRow` создаёт отдельный `useQuery` + polling-цикл на 3 с для каждой строки документа. При большом числе строк это генерирует значительный фоновый трафик.
+**Контекст:** `DocumentAnonymizationRow` создавал отдельный `useQuery` + polling-цикл на 3 с для каждой строки документа. При большом числе строк это генерировало значительный фоновый трафик.
 
-**Желаемое решение:**  
-- Добавить на бекенде эндпойнт `GET /api/v1/tasks?document_ids=id1,id2,...` (батч-запрос).  
-- Перенести polling на уровень страницы: один запрос для всех видимых документов.  
-- Альтернатива — ограничить polling только видимыми строками через `IntersectionObserver`.
-
-**Текущий workaround:** нет, N+1 активен.
+**Решение (2026-04-29):**  
+- Бекенд (`go-kpi-tenders`): добавлен `GET /api/v1/tasks?document_ids=id1,id2,...` — SQL `WHERE document_id = ANY($1::uuid[])`, tenancy-safe.  
+- Фронтенд: `useQuery` вынесен из `DocumentAnonymizationRow` в `AnonymizationPage`. Один батч-запрос на страницу с polling, который останавливается автоматически когда все задачи завершены. Строки получают `tasks` и `isLoadingTasks` через props.  
+- Добавлен `tasksApi.getByDocuments(ids[])` в `src/services/api/tasks.ts`.
 
 ---
 

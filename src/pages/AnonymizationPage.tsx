@@ -297,31 +297,13 @@ function ResultDialog({ doc, anonymizeTask, isOpen, onClose }: ResultDialogProps
 
 interface DocumentAnonymizationRowProps {
   doc: Document
+  tasks: Task[]
+  isLoadingTasks: boolean
   onPreview: (doc: Document, anonymizeTask: Task) => void
 }
 
-function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowProps) {
+function DocumentAnonymizationRow({ doc, tasks, isLoadingTasks, onPreview }: DocumentAnonymizationRowProps) {
   const queryClient = useQueryClient()
-
-  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery({
-    queryKey: ["tasks", doc.id],
-    queryFn: () => tasksApi.getByDocument(doc.id),
-    staleTime: 0,
-    // Poll at 3 s while any task is active or while convert is done but
-    // anonymize hasn't been created yet (backend creates it asynchronously).
-    refetchInterval: (query) => {
-      const data = query.state.data as Task[] | undefined
-      if (!data || data.length === 0) return false
-      const hasActive = data.some(
-        (t) => t.status === "pending" || t.status === "processing",
-      )
-      if (hasActive) return 3000
-      const convertTask = data.find((t) => t.module_name === "convert")
-      const anonymizeTask = data.find((t) => t.module_name === "anonymize")
-      if (convertTask?.status === "completed" && !anonymizeTask) return 3000
-      return false
-    },
-  })
 
   const getModuleLabel = (module: TaskModule) =>
     module === "convert" ? "Конвертация" : "Анонимизация"
@@ -329,7 +311,7 @@ function DocumentAnonymizationRow({ doc, onPreview }: DocumentAnonymizationRowPr
   const startMutation = useMutation({
     mutationFn: (module: TaskModule) => tasksApi.start(doc.id, module),
     onSuccess: (_data, module) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", doc.id] })
+      queryClient.invalidateQueries({ queryKey: ["tasks", "batch"] })
       toast.success(`${getModuleLabel(module)} «${doc.file_name}» запущена`)
     },
     onError: (err, module) => {
@@ -482,6 +464,33 @@ function AnonymizationPage() {
     queryFn: documentsApi.list,
   })
 
+  const { data: allTasks = [], isLoading: isLoadingTasks } = useQuery({
+    queryKey: ["tasks", "batch", documents.map((d) => d.id).join(",")],
+    queryFn: () => tasksApi.getByDocuments(documents.map((d) => d.id)),
+    enabled: documents.length > 0,
+    staleTime: 0,
+    // Poll at 3 s while any task is active, or while convert is done but
+    // anonymize hasn't been created yet (backend creates it asynchronously).
+    refetchInterval: (query) => {
+      const data = query.state.data as Task[] | undefined
+      if (!data || data.length === 0) return false
+      const hasActive = data.some(
+        (t) => t.status === "pending" || t.status === "processing",
+      )
+      if (hasActive) return 3000
+      const docsWithConvertDone = new Set(
+        data
+          .filter((t) => t.module_name === "convert" && t.status === "completed")
+          .map((t) => t.document_id),
+      )
+      const docsWithAnonymize = new Set(
+        data.filter((t) => t.module_name === "anonymize").map((t) => t.document_id),
+      )
+      if ([...docsWithConvertDone].some((id) => !docsWithAnonymize.has(id))) return 3000
+      return false
+    },
+  })
+
   const handlePreview = (doc: Document, anonymizeTask: Task) => {
     setPreview({ doc, anonymizeTask })
   }
@@ -600,7 +609,13 @@ function AnonymizationPage() {
               </Button>
             </div>
             {documents.map((doc) => (
-              <DocumentAnonymizationRow key={doc.id} doc={doc} onPreview={handlePreview} />
+              <DocumentAnonymizationRow
+                key={doc.id}
+                doc={doc}
+                tasks={allTasks.filter((t) => t.document_id === doc.id)}
+                isLoadingTasks={isLoadingTasks}
+                onPreview={handlePreview}
+              />
             ))}
           </div>
         )}
