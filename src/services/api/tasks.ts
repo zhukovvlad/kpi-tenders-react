@@ -1,4 +1,4 @@
-import apiClient from "./client"
+import apiClient from "@/services/api/client"
 import type { Task, TaskModule } from "@/types/task"
 
 export const tasksApi = {

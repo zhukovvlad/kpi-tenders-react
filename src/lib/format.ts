@@ -7,7 +7,9 @@ export function formatBytes(bytes: number | null): string {
 }
 
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", {
+  const date = new Date(iso)
+  if (isNaN(date.getTime())) return "-"
+  return date.toLocaleString("ru-RU", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

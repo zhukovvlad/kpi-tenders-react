@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import type { ReactNode } from "react"
 import axios from "axios"
 import { Link } from "react-router-dom"
@@ -17,7 +17,7 @@ import {
   ChevronRight,
   FileText,
   Download,
-  Map,
+  MapIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,7 @@ import type { Document } from "@/types/document"
 import type { Task, TaskModule, TaskStatus } from "@/types/task"
 import { logger } from "@/lib/logger"
 import { formatBytes, formatDate } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -108,7 +109,10 @@ function StageChip({ label, status }: StageChipProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${chip}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+        chip,
+      )}
     >
       {icon}
       {label}
@@ -283,7 +287,7 @@ function ResultDialog({ doc, anonymizeTask, isOpen, onClose }: ResultDialogProps
                     documentId={entitiesMapDocId}
                     fileName={buildDownloadName(doc.file_name, "entities")}
                     label="Карта сущностей"
-                    icon={<Map className="h-3.5 w-3.5" />}
+                    icon={<MapIcon className="h-3.5 w-3.5" />}
                   />
                 )}
               </div>
@@ -299,10 +303,11 @@ interface DocumentAnonymizationRowProps {
   doc: Document
   tasks: Task[]
   isLoadingTasks: boolean
+  isErrorTasks: boolean
   onPreview: (doc: Document, anonymizeTask: Task) => void
 }
 
-function DocumentAnonymizationRow({ doc, tasks, isLoadingTasks, onPreview }: DocumentAnonymizationRowProps) {
+function DocumentAnonymizationRow({ doc, tasks, isLoadingTasks, isErrorTasks, onPreview }: DocumentAnonymizationRowProps) {
   const queryClient = useQueryClient()
 
   const getModuleLabel = (module: TaskModule) =>
@@ -403,7 +408,7 @@ function DocumentAnonymizationRow({ doc, tasks, isLoadingTasks, onPreview }: Doc
           </Button>
         )}
 
-        {!hasStarted && !isLoadingTasks && (
+        {!hasStarted && !isLoadingTasks && !isErrorTasks && (
           <Button
             size="sm"
             className="h-8 gap-1.5 bg-violet-600/80 px-3 text-white hover:bg-violet-600 disabled:opacity-50"
@@ -464,7 +469,7 @@ function AnonymizationPage() {
     queryFn: documentsApi.list,
   })
 
-  const { data: allTasks = [], isLoading: isLoadingTasks } = useQuery({
+  const { data: allTasks = [], isLoading: isLoadingTasks, isError: isErrorTasks } = useQuery({
     queryKey: ["tasks", "batch", documents.map((d) => d.id).join(",")],
     queryFn: () => tasksApi.getByDocuments(documents.map((d) => d.id)),
     enabled: documents.length > 0,
@@ -490,6 +495,19 @@ function AnonymizationPage() {
       return false
     },
   })
+
+  const tasksByDocId = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    for (const task of allTasks) {
+      const existing = map.get(task.document_id)
+      if (existing) {
+        existing.push(task)
+      } else {
+        map.set(task.document_id, [task])
+      }
+    }
+    return map
+  }, [allTasks])
 
   const handlePreview = (doc: Document, anonymizeTask: Task) => {
     setPreview({ doc, anonymizeTask })
@@ -612,8 +630,9 @@ function AnonymizationPage() {
               <DocumentAnonymizationRow
                 key={doc.id}
                 doc={doc}
-                tasks={allTasks.filter((t) => t.document_id === doc.id)}
+                tasks={tasksByDocId.get(doc.id) ?? []}
                 isLoadingTasks={isLoadingTasks}
+                isErrorTasks={isErrorTasks}
                 onPreview={handlePreview}
               />
             ))}

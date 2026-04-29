@@ -43,7 +43,7 @@ src/
 │       ├── client.ts       # Axios instance (base URL, cookies, interceptors)
 │       ├── auth.ts         # Auth API methods
 │       ├── documents.ts    # Documents CRUD + presigned URL
-│       └── tasks.ts        # Tasks API (getByDocument, start)
+│       └── tasks.ts        # Tasks API (getByDocument, getByDocuments, start)
 ├── types/
 │   ├── auth.ts             # User, AuthContextValue
 │   ├── document.ts         # Document, ArtifactKind
@@ -56,7 +56,7 @@ src/
 
 ## Routing
 
-```
+```text
 /                     — LandingPage (public)
 /dashboard            — DashboardPage (protected)
 /documents            — DocumentsPage (protected)
@@ -65,6 +65,8 @@ src/
 
 > Planned (not yet registered in `App.tsx`):
 > `/login`, `/register`, `/sites`, `/sites/:id`, `/users`, `/profile`
+
+**Note:** The `/anonymization` route uses a single page-level polling query (`queryKey: ["tasks", "batch", ...]`) that covers all documents. `queryClient.invalidateQueries({ queryKey: ["tasks", "batch"] })` is used after starting a task to trigger an immediate refetch.
 
 **Protected routes** use `<ProtectedRoute>`. Add new protected routes via the same wrapper — never add auth checks inside page components.
 
@@ -252,11 +254,12 @@ Never call `tasksApi.getResultUrl` — it was removed. Never use raw `storage_pa
 
 ## Tasks API
 
-`src/services/api/tasks.ts` — two methods only:
+`src/services/api/tasks.ts` — three methods:
 
 ```ts
-tasksApi.getByDocument(documentId)  // GET /api/v1/tasks?document_id=:id
-tasksApi.start(documentId, moduleName)  // POST /api/v1/tasks
+tasksApi.getByDocument(documentId)         // GET /api/v1/tasks?document_id=:id
+tasksApi.getByDocuments(documentIds[])     // GET /api/v1/tasks?document_ids=id1,id2,...
+tasksApi.start(documentId, moduleName)     // POST /api/v1/tasks
 ```
 
-Task polling is done via TanStack Query `refetchInterval` callback — stop polling when `status === 'completed' || status === 'failed'`.
+`getByDocuments` is used by `AnonymizationPage` for page-level batch polling (one request for all visible documents). Task polling is done via TanStack Query `refetchInterval` callback — polling stops automatically when all tasks are in a terminal state (`completed` or `failed`) and no convert-done documents are missing their anonymize task.
