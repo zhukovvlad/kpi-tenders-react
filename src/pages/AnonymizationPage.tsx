@@ -341,7 +341,10 @@ function DocumentAnonymizationRow({ doc, tasks, isLoadingTasks, isErrorTasks, on
   const anonymizeTask = latestByModule("anonymize")
 
   const convertStatus: StageStatus = convertTask?.status ?? "idle"
-  const anonymizeStatus: StageStatus = anonymizeTask?.status ?? "idle"
+  // While convert is completed but the backend hasn't created the anonymize
+  // task yet (async creation), show "pending" so the row doesn't look stuck.
+  const anonymizeStatus: StageStatus =
+    anonymizeTask?.status ?? (convertStatus === "completed" ? "pending" : "idle")
 
   const isRunning =
     convertStatus === "pending" ||
