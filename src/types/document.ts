@@ -8,7 +8,6 @@ export interface Document {
   parent_id: string | null
   artifact_kind: ArtifactKind | null
   file_name: string
-  storage_path: string
   mime_type: string | null
   file_size_bytes: number | null
   created_at: string
