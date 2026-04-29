@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth"
 import LandingPage from "@/pages/LandingPage"
 import DashboardPage from "@/pages/DashboardPage"
 import DocumentsPage from "@/pages/DocumentsPage"
+import AnonymizationPage from "@/pages/AnonymizationPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <DocumentsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/anonymization"
+        element={
+          <ProtectedRoute>
+            <AnonymizationPage />
           </ProtectedRoute>
         }
       />

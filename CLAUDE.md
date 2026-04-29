@@ -2,6 +2,8 @@
 
 Frontend SaaS-платформы для анализа строительных тендеров. Multi-tenant, React 19 + TypeScript + Vite.
 
+> Known technical debts are tracked in [`TECH_DEBT.md`](./TECH_DEBT.md).
+
 ## Commands
 
 ```bash
@@ -30,26 +32,41 @@ src/
 ├── components/          # Reusable UI components
 │   └── ui/             # shadcn/ui primitives (do not modify manually)
 ├── context/            # Global React context (auth session, theme, sidebar)
-├── hooks/              # Custom hooks (useAuth, future: useToast, etc.)
+├── hooks/              # Custom hooks (useAuth, useUser)
 ├── pages/              # Route-level page components
+│   ├── LandingPage.tsx
+│   ├── DashboardPage.tsx
+│   ├── DocumentsPage.tsx
+│   └── AnonymizationPage.tsx
 ├── services/
 │   └── api/
-│       ├── client.ts   # Axios instance (base URL, cookies, interceptors)
-│       └── auth.ts     # Auth API methods
+│       ├── client.ts       # Axios instance (base URL, cookies, interceptors)
+│       ├── auth.ts         # Auth API methods
+│       ├── documents.ts    # Documents CRUD + presigned URL
+│       └── tasks.ts        # Tasks API (getByDocument, getByDocuments, start)
+├── types/
+│   ├── auth.ts             # User, AuthContextValue
+│   ├── document.ts         # Document, ArtifactKind
+│   └── task.ts             # Task, TaskModule, TaskStatus, TaskResultPayload
 ├── lib/
-│   └── utils.ts        # cn() helper (clsx + tailwind-merge)
-└── App.tsx             # BrowserRouter + Routes
+│   ├── utils.ts            # cn() helper (clsx + tailwind-merge)
+│   └── logger.ts           # Centralized logger
+└── App.tsx                 # BrowserRouter + Routes
 ```
 
 ## Routing
 
-```
-/                  — LandingPage (public)
-/dashboard         — Dashboard (protected)
+```text
+/                     — LandingPage (public)
+/dashboard            — DashboardPage (protected)
+/documents            — DocumentsPage (protected)
+/anonymization        — AnonymizationPage (protected)
 ```
 
 > Planned (not yet registered in `App.tsx`):
-> `/login`, `/register`, `/sites`, `/sites/:id`, `/tasks`, `/users`, `/profile`
+> `/login`, `/register`, `/sites`, `/sites/:id`, `/users`, `/profile`
+
+**Note:** The `/anonymization` route uses a single page-level polling query (`queryKey: ["tasks", "batch", ...]`) that covers all documents. `queryClient.invalidateQueries({ queryKey: ["tasks", "batch"] })` is used after starting a task to trigger an immediate refetch.
 
 **Protected routes** use `<ProtectedRoute>`. Add new protected routes via the same wrapper — never add auth checks inside page components.
 
@@ -196,3 +213,53 @@ The backend enforces tenant isolation via `organization_id`. The frontend:
 - Never constructs API URLs with `org_id` manually — it is extracted from the JWT on the backend.
 - `org_id` is available in `AuthContext` via `user.org_id` for display purposes only.
 - Never pass `org_id` as a request body field — the backend derives it from the token.
+
+## Documents & Artifacts
+
+**Document** (`src/types/document.ts`) — base upload unit. Two kinds:
+- `artifact_kind === null` — user-uploaded file. Shown in `DocumentsPage`.
+- `artifact_kind !== null` — processing artifact (`convert_md`, `anonymize_doc`, `anonymize_entities`). Has `parent_id` pointing to the source document. **Never shown in `DocumentsPage`** (backend filters `WHERE parent_id IS NULL`).
+
+**Artifact access**:
+- `GET /api/v1/documents?parent_id=:uuid` — fetch artifacts of a document
+- `GET /api/v1/documents/:id/url?download=true` — presigned MinIO URL for download
+
+**`TaskResultPayload`** (`src/types/task.ts`) stores artifact document UUIDs, not storage paths:
+
+```ts
+export interface TaskResultPayload {
+  // convert worker
+  md_document_id?: string
+  char_count?: number
+  section_count?: number
+  // anonymize worker
+  anonymized_document_id?: string
+  entities_map_document_id?: string
+  entity_count?: number
+}
+```
+
+**Download pattern** — always via `documentsApi.getPresignedUrl(documentId, true)`:
+```ts
+const url = await documentsApi.getPresignedUrl(documentId, true)
+const a = document.createElement('a')
+a.href = url
+a.download = fileName  // use a meaningful name, not empty string
+document.body.appendChild(a)
+a.click()
+document.body.removeChild(a)
+```
+
+Never call `tasksApi.getResultUrl` — it was removed. `storage_path` is not part of the `Document` interface and is never returned by the API — always use presigned URLs for downloads.
+
+## Tasks API
+
+`src/services/api/tasks.ts` — three methods:
+
+```ts
+tasksApi.getByDocument(documentId)         // GET /api/v1/tasks?document_id=:id
+tasksApi.getByDocuments(documentIds[])     // GET /api/v1/tasks?document_ids=id1,id2,...
+tasksApi.start(documentId, moduleName)     // POST /api/v1/tasks
+```
+
+`getByDocuments` is used by `AnonymizationPage` for page-level batch polling (one request for all visible documents). Task polling is done via TanStack Query `refetchInterval` callback — polling stops automatically when all tasks are in a terminal state (`completed` or `failed`) and no convert-done documents are missing their anonymize task.
