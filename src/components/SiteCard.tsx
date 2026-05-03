@@ -5,6 +5,7 @@ import { ContractKindChip } from "@/components/ui-domain/ContractKindChip"
 import { StatusPill } from "@/components/ui-domain/StatusPill"
 import { aggregateStatusToPill } from "@/lib/site-status"
 import { formatPercent, formatRelative } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 interface SiteCardProps {
   site: SiteListItem
@@ -74,7 +75,7 @@ export function SiteCard({ site }: SiteCardProps) {
       <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-3 text-xs">
         <div>
           <div className="text-fg-tertiary">Удорожание</div>
-          <div className={`text-sm font-medium ${inflationTone}`}>
+          <div className={cn("text-sm font-medium", inflationTone)}>
             {site.inflation_pct === null
               ? <span className="text-fg-tertiary">{inflationLabel}</span>
               : inflationLabel}

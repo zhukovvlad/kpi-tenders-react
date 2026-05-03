@@ -279,6 +279,8 @@ Each service in `src/services/api/*.ts` checks `if (USE_MOCKS)` at the top of ev
 
 When wiring a new endpoint, the pattern is: keep the real `apiClient.get/post(...)` branch as the source of truth, and add a parallel `if (USE_MOCKS) return mockDelay(...)` branch reading or mutating the seed data so UIs work end-to-end without the backend.
 
+**Important:** `MOCK_SITE_LIST` in `data.ts` is a static snapshot computed at module init. After CRUD mutations (`create`/`update`/`delete`), use `getMockSiteList()` instead — it recomputes from the current `MOCK_SITES` array and reflects mutations. `sitesApi.listForDashboard` and `listChildren` use `getMockSiteList()`.
+
 ## Logging
 
 Never use `console.log` in business logic or components. Use the centralized `logger` utility:
@@ -388,6 +390,13 @@ document.body.appendChild(a)
 a.click()
 document.body.removeChild(a)
 ```
+
+**Preview pattern** — open in new tab via `documentsApi.getPresignedUrl(documentId, false)`:
+```ts
+const url = await documentsApi.getPresignedUrl(documentId, false)
+window.open(url, '_blank', 'noopener,noreferrer')
+```
+
 `storage_path` is never returned by the API — always presigned URLs.
 
 ## Extraction Flow

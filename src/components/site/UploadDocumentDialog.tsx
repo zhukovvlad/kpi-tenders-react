@@ -14,6 +14,7 @@ import { formatBytes } from "@/lib/format"
 interface UploadDocumentDialogProps {
   siteId: string
   initialKind?: ContractKind
+  bundleId?: string
   onClose: () => void
 }
 
@@ -22,6 +23,7 @@ interface UploadDocumentDialogProps {
 export function UploadDocumentDialog({
   siteId,
   initialKind,
+  bundleId,
   onClose,
 }: UploadDocumentDialogProps) {
   const queryClient = useQueryClient()
@@ -42,6 +44,7 @@ export function UploadDocumentDialog({
         file,
         siteId,
         contractKind: kind,
+        bundleId,
       })
     },
     onSuccess: () => {
@@ -50,8 +53,6 @@ export function UploadDocumentDialog({
       onClose()
     },
   })
-
-  if (!open) return null
 
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center bg-black/40 px-4 py-8">

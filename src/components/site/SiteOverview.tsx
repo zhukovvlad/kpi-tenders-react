@@ -28,6 +28,13 @@ export function SiteOverview({ site }: SiteOverviewProps) {
   const children = childrenQuery.data ?? []
   const kpis = computeKpis(children)
 
+  const subtitle =
+    childrenQuery.isError
+      ? "Ошибка загрузки дочерних объектов"
+      : children.length > 0
+        ? `${children.length} ${pluralize(children.length, ["дочерний объект", "дочерних объекта", "дочерних объектов"])} · ${kpis.totalExtracted} параметр${pluralize(kpis.totalExtracted, ["", "а", "ов"])}`
+        : "Нет дочерних объектов"
+
   return (
     <>
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -54,9 +61,7 @@ export function SiteOverview({ site }: SiteOverviewProps) {
               {site.name}
             </h1>
             <div className="mt-1 text-sm text-fg-tertiary">
-              {children.length > 0
-                ? `${children.length} ${pluralize(children.length, ["дочерний объект", "дочерних объекта", "дочерних объектов"])} · ${kpis.totalContracts} договор${pluralize(kpis.totalContracts, ["", "а", "ов"])} · ${kpis.totalExtracted} параметр${pluralize(kpis.totalExtracted, ["", "а", "ов"])}`
-                : "Нет дочерних объектов"}
+              {subtitle}
             </div>
           </div>
         </div>
@@ -106,6 +111,11 @@ export function SiteOverview({ site }: SiteOverviewProps) {
       <div className="mt-6">
         {childrenQuery.isLoading ? (
           <div className="h-40 animate-pulse rounded-lg border border-border-subtle bg-surface" />
+        ) : childrenQuery.isError ? (
+          <EmptyState
+            title="Не удалось загрузить объекты"
+            description="Проверьте соединение и попробуйте обновить страницу."
+          />
         ) : children.length === 0 ? (
           <EmptyState
             title="У объекта нет дочерних"
@@ -216,7 +226,6 @@ function ChildrenTable({ items }: ChildrenTableProps) {
 interface ChildrenKpis {
   ready: number
   attention: number
-  totalContracts: number
   totalExtracted: number
   avgInflation: number | null
   worstInflation: number | null
@@ -225,13 +234,11 @@ interface ChildrenKpis {
 function computeKpis(items: SiteListItem[]): ChildrenKpis {
   let ready = 0
   let attention = 0
-  let totalContracts = 0
   let totalExtracted = 0
   const inflations: number[] = []
   for (const item of items) {
     if (item.aggregate_status === "ready") ready += 1
     if (item.aggregate_status === "attention") attention += 1
-    totalContracts += item.contract_kinds.length
     totalExtracted += item.extracted_count
     if (item.inflation_pct !== null) inflations.push(item.inflation_pct)
   }

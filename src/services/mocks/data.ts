@@ -731,6 +731,25 @@ export const MOCK_SITE_LIST: SiteListItem[] = MOCK_SITES.map((s) => {
   }
 })
 
+// Динамическое вычисление SiteListItem из текущего состояния MOCK_SITES.
+// В отличие от статического MOCK_SITE_LIST, результат актуален после CRUD-мутаций.
+export function getMockSiteList(): SiteListItem[] {
+  return MOCK_SITES.map((s) => {
+    const seed = SITE_SEEDS.find((x) => x.id === s.id)
+    const breadcrumbs = siteBreadcrumbs(s.id).slice(0, -1)
+    const agg = siteAggregates(s.id)
+    return {
+      ...s,
+      breadcrumbs,
+      contract_kinds: agg.contract_kinds,
+      aggregate_status: seed?.aggregate_status ?? "empty",
+      extracted_count: agg.extracted_count,
+      inflation_pct: seed?.inflation_pct ?? null,
+      last_activity_at: agg.last_activity_at,
+    }
+  })
+}
+
 // ── Утилиты выборки, используемые mock-сервисами ──────────────────────────
 
 export function findSiteById(siteId: string): ConstructionSite | undefined {

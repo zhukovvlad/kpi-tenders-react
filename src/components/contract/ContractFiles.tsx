@@ -37,6 +37,11 @@ export function ContractFiles({ bundle, onAddFile }: ContractFilesProps) {
     document.body.removeChild(a)
   }
 
+  async function previewDoc(doc: Document) {
+    const url = await documentsApi.getPresignedUrl(doc.id, false)
+    window.open(url, "_blank", "noopener,noreferrer")
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface">
       <div className="border-b border-border-subtle bg-section-header px-4 py-2 text-2xs uppercase tracking-wider text-fg-tertiary">
@@ -62,7 +67,7 @@ export function ContractFiles({ bundle, onAddFile }: ContractFilesProps) {
                   variant="ghost"
                   size="sm"
                   leftIcon={<Eye size={12} />}
-                  onClick={() => downloadDoc(doc)}
+                  onClick={() => previewDoc(doc)}
                 >
                   Просмотр
                 </Button>

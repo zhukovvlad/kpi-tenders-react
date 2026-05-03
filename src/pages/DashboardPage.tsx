@@ -91,7 +91,7 @@ export default function DashboardPage() {
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[200px] flex-1">
+        <div className="relative min-w-50 flex-1">
           <Search
             size={14}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary"
@@ -134,6 +134,11 @@ export default function DashboardPage() {
       <div className="mt-6">
         {sitesQuery.isLoading ? (
           <DashboardSkeleton />
+        ) : sitesQuery.isError ? (
+          <EmptyState
+            title="Не удалось загрузить объекты"
+            description="Проверьте соединение и попробуйте обновить страницу."
+          />
         ) : sites.length === 0 ? (
           <EmptyState
             title="Создайте первый объект"
@@ -221,7 +226,7 @@ function DashboardSkeleton() {
       {Array.from({ length: 6 }).map((_, idx) => (
         <div
           key={idx}
-          className="h-[164px] animate-pulse rounded-lg border border-border-subtle bg-surface"
+          className="h-41 animate-pulse rounded-lg border border-border-subtle bg-surface"
         />
       ))}
     </div>

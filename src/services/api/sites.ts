@@ -3,7 +3,7 @@ import type { ConstructionSite, SiteListItem } from "@/types/site"
 import { mockDelay, USE_MOCKS } from "@/services/mocks"
 import {
   MOCK_SITES,
-  MOCK_SITE_LIST,
+  getMockSiteList,
   findSiteById,
 } from "@/services/mocks/data"
 
@@ -32,7 +32,7 @@ export const sitesApi = {
   // доступны через drill-down на промежуточном экране родителя.
   listForDashboard: (): Promise<SiteListItem[]> =>
     USE_MOCKS
-      ? mockDelay(MOCK_SITE_LIST.filter((s) => s.parent_id === null))
+      ? mockDelay(getMockSiteList().filter((s) => s.parent_id === null))
       : apiClient
           .get<SiteListItem[]>("/api/v1/sites?aggregate=true&roots=true")
           .then((r) => r.data),
@@ -40,7 +40,7 @@ export const sitesApi = {
   // Дочерние объекты для промежуточного экрана родителя.
   listChildren: (parentId: string): Promise<SiteListItem[]> =>
     USE_MOCKS
-      ? mockDelay(MOCK_SITE_LIST.filter((s) => s.parent_id === parentId))
+      ? mockDelay(getMockSiteList().filter((s) => s.parent_id === parentId))
       : apiClient
           .get<SiteListItem[]>(
             `/api/v1/sites?aggregate=true&parent_id=${encodeURIComponent(parentId)}`,
