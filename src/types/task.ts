@@ -1,4 +1,4 @@
-export type TaskModule = "convert" | "anonymize"
+export type TaskModule = "convert" | "anonymize" | "resolve_keys" | "extract"
 
 export type TaskStatus = "pending" | "processing" | "completed" | "failed"
 

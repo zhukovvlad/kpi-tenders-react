@@ -1,11 +1,10 @@
 import { useState, type FormEvent } from "react"
-import { useNavigate, Link } from "react-router-dom"
-import { Loader2 } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import { isAxiosError } from "axios"
 import { useAuth } from "@/hooks/useAuth"
-import { GlassCard } from "@/components/GlassCard"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Logo } from "@/components/layout/Logo"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
+import { Button } from "@/components/ui-domain/Button"
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -17,12 +16,12 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
     setError(null)
-    setIsSubmitting(true)
+    setSubmitting(true)
     try {
       await register({
         name: orgName,
@@ -32,138 +31,125 @@ export default function RegisterPage() {
         password,
       })
       navigate("/dashboard", { replace: true })
-    } catch (err: unknown) {
+    } catch (caught) {
       const message =
-        (err as { response?: { data?: { error?: { message?: string } } } })
-          ?.response?.data?.error?.message ?? "Registration failed. Please try again."
+        isAxiosError(caught) && caught.response?.data?.message
+          ? caught.response.data.message
+          : "Не удалось зарегистрировать организацию."
       setError(message)
     } finally {
-      setIsSubmitting(false)
+      setSubmitting(false)
     }
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#020617]">
-      {/* Ambient spheres */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-20 top-1/4 h-[400px] w-[400px] rounded-full bg-purple-700/30 blur-[120px]" />
-        <div className="absolute -right-10 bottom-1/4 h-[400px] w-[400px] rounded-full bg-indigo-600/30 blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-sm px-4 py-10">
-        {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-2">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-indigo-400">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="text-lg font-medium text-white">Tender Analysis</span>
+    <div className="flex min-h-screen flex-col bg-page">
+      <header className="border-b border-border-subtle">
+        <div className="container-page flex h-14 items-center justify-between">
+          <Logo to="/" />
+          <ThemeToggle />
         </div>
-
-        <GlassCard className="p-8">
-          <h1 className="mb-1 text-xl font-semibold text-white">Create account</h1>
-          <p className="mb-6 text-sm text-white/40">Register your organisation</p>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="org-name" className="text-white/60">Organisation name</Label>
-              <Input
-                id="org-name"
-                type="text"
-                autoComplete="organization"
-                placeholder="Acme LLC"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                required
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/20 focus-visible:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="inn" className="text-white/60">
-                INN{" "}
-                <span className="text-white/30">(optional)</span>
-              </Label>
-              <Input
-                id="inn"
-                type="text"
-                inputMode="numeric"
-                placeholder="1234567890"
-                value={inn}
-                onChange={(e) => setInn(e.target.value)}
-                maxLength={12}
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/20 focus-visible:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="full-name" className="text-white/60">Full name</Label>
-              <Input
-                id="full-name"
-                type="text"
-                autoComplete="name"
-                placeholder="Ivan Ivanov"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/20 focus-visible:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email" className="text-white/60">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/20 focus-visible:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password" className="text-white/60">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                placeholder="Min. 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/20 focus-visible:ring-indigo-500"
-              />
-            </div>
-
+      </header>
+      <main className="flex flex-1 items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md">
+          <div className="mb-6">
+            <h1 className="font-serif text-3xl text-fg">Новая организация</h1>
+            <p className="mt-1 text-sm text-fg-secondary">
+              Заведите тенант — туда лягут все ваши объекты, договоры и
+              извлечённые параметры.
+            </p>
+          </div>
+          <form
+            onSubmit={handleSubmit}
+            className="grid gap-4 rounded-lg border border-border-subtle bg-surface p-5 sm:grid-cols-2"
+          >
+            <Field
+              label="Название организации"
+              value={orgName}
+              onChange={setOrgName}
+              required
+              className="sm:col-span-2"
+            />
+            <Field label="ИНН" value={inn} onChange={setInn} />
+            <Field
+              label="Имя ответственного"
+              value={fullName}
+              onChange={setFullName}
+              required
+            />
+            <Field
+              label="Email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={setEmail}
+              required
+              className="sm:col-span-2"
+            />
+            <Field
+              label="Пароль"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={setPassword}
+              required
+              className="sm:col-span-2"
+            />
             {error && (
-              <p className="rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400">
+              <div className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-xs text-danger-text sm:col-span-2">
                 {error}
-              </p>
+              </div>
             )}
-
             <Button
               type="submit"
-              disabled={isSubmitting}
-              className="mt-2 bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50"
+              loading={submitting}
+              className="w-full sm:col-span-2"
             >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {isSubmitting ? "Creating account…" : "Create account"}
+              Зарегистрировать
             </Button>
           </form>
-        </GlassCard>
-
-        <p className="mt-6 text-center text-sm text-white/30">
-          Already have an account?{" "}
-          <Link to="/login" className="text-indigo-400 hover:text-indigo-300">
-            Sign in
-          </Link>
-        </p>
-      </div>
+          <p className="mt-4 text-center text-xs text-fg-tertiary">
+            Уже есть аккаунт?{" "}
+            <Link to="/login" className="text-accent hover:text-accent-hover underline underline-offset-2">
+              Войти
+            </Link>
+          </p>
+        </div>
+      </main>
     </div>
+  )
+}
+
+interface FieldProps {
+  label: string
+  type?: string
+  value: string
+  autoComplete?: string
+  required?: boolean
+  onChange: (next: string) => void
+  className?: string
+}
+
+function Field({
+  label,
+  type = "text",
+  value,
+  autoComplete,
+  required,
+  onChange,
+  className,
+}: FieldProps) {
+  return (
+    <label className={`block ${className ?? ""}`}>
+      <span className="mb-1 block text-xs text-fg-tertiary">{label}</span>
+      <input
+        type={type}
+        value={value}
+        autoComplete={autoComplete}
+        required={required}
+        onChange={(e) => onChange(e.target.value)}
+        className="block w-full rounded-md border border-border-default bg-surface-sunken px-3 py-2 text-sm text-fg placeholder:text-fg-tertiary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+      />
+    </label>
   )
 }

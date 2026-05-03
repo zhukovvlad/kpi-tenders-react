@@ -1,198 +1,229 @@
-import type { ReactNode } from "react"
+import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { LogOut, Bell, User, ShieldCheck, BarChart3, TrendingUp, Plus, FolderUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/hooks/useAuth"
+import { useQuery } from "@tanstack/react-query"
+import { Plus, Search } from "lucide-react"
+import { sitesApi } from "@/services/api/sites"
+import type { SiteAggregateStatus, SiteListItem } from "@/types/site"
+import { Button } from "@/components/ui-domain/Button"
+import { PageHeader } from "@/components/ui-domain/PageHeader"
+import { EmptyState } from "@/components/ui-domain/EmptyState"
+import { SiteCard } from "@/components/SiteCard"
 import { cn } from "@/lib/utils"
 
-interface Module {
-  id: string
-  title: string
-  description: string
-  icon: ReactNode
-  accent: string
-  glow: string
-  orb: string
-  available: boolean
-  href?: string
+type StatusFilter = "all" | SiteAggregateStatus | "archived"
+type SortKey = "recent" | "name" | "inflation"
+
+interface FilterMeta {
+  key: StatusFilter
+  label: string
 }
 
-const PLACEHOLDER_MODULE: Omit<Module, "id"> = {
-  title: "Скоро",
-  description: "Модуль в разработке",
-  icon: <Plus className="h-7 w-7" />,
-  accent: "from-white/5 to-white/0",
-  glow: "bg-white/10",
-  orb: "bg-white/5",
-  available: false,
-}
-
-const MODULES: Module[] = [
-  {
-    id: "depersonalization",
-    title: "Деперсонализация",
-    description: "Автоматическое удаление персональных данных из тендерной документации перед анализом",
-    icon: <ShieldCheck className="h-7 w-7" />,
-    accent: "from-violet-500/20 to-purple-600/10",
-    glow: "bg-violet-500/30",
-    orb: "bg-violet-600/20",
-    available: true,
-    href: "/anonymization",
-  },
-  {
-    id: "key-params",
-    title: "Ключевые параметры",
-    description: "Извлечение и структурирование ключевых условий, сроков и требований из тендера",
-    icon: <BarChart3 className="h-7 w-7" />,
-    accent: "from-sky-500/20 to-cyan-600/10",
-    glow: "bg-sky-500/30",
-    orb: "bg-sky-600/20",
-    available: true,
-  },
-  {
-    id: "cost-increase",
-    title: "Удорожание",
-    description: "Анализ факторов и рисков, которые могут привести к увеличению стоимости контракта",
-    icon: <TrendingUp className="h-7 w-7" />,
-    accent: "from-amber-500/20 to-orange-600/10",
-    glow: "bg-amber-500/30",
-    orb: "bg-amber-600/20",
-    available: true,
-  },
-  {
-    id: "documents",
-    title: "Загрузка документов",
-    description: "Загрузка тендерной документации в хранилище для последующей обработки модулями анализа",
-    icon: <FolderUp className="h-7 w-7" />,
-    accent: "from-emerald-500/20 to-teal-600/10",
-    glow: "bg-emerald-500/30",
-    orb: "bg-emerald-600/20",
-    available: true,
-    href: "/documents",
-  },
-  { ...PLACEHOLDER_MODULE, id: "todo-5" },
-  { ...PLACEHOLDER_MODULE, id: "todo-6" },
+const STATUS_FILTERS: FilterMeta[] = [
+  { key: "all", label: "Все" },
+  { key: "processing", label: "В работе" },
+  { key: "ready", label: "Готовы" },
+  { key: "attention", label: "Требуют внимания" },
+  { key: "archived", label: "Архив" },
 ]
 
-function DashboardPage() {
-  const { logout, user } = useAuth()
+const SORTS: Array<{ key: SortKey; label: string }> = [
+  { key: "recent", label: "По свежести" },
+  { key: "name", label: "По названию" },
+  { key: "inflation", label: "По удорожанию" },
+]
+
+export default function DashboardPage() {
+  const sitesQuery = useQuery({
+    queryKey: ["sites", "dashboard"],
+    queryFn: sitesApi.listForDashboard,
+  })
+
+  const [filter, setFilter] = useState<StatusFilter>("all")
+  const [search, setSearch] = useState("")
+  const [sort, setSort] = useState<SortKey>("recent")
+
+  // useMemo — стабильная ссылка для зависимостей нижестоящих хуков, иначе
+  // дефолт `[]` каждый рендер пересоздаётся и валит useMemo.
+  const sites = useMemo(() => sitesQuery.data ?? [], [sitesQuery.data])
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return sites
+      .filter((s) => {
+        if (filter === "archived") return s.status === "archived"
+        if (s.status === "archived") return false
+        if (filter !== "all" && s.aggregate_status !== filter) return false
+        if (
+          query.length > 0 &&
+          !s.name.toLowerCase().includes(query) &&
+          !s.breadcrumbs.some((b) => b.toLowerCase().includes(query))
+        ) {
+          return false
+        }
+        return true
+      })
+      .sort((a, b) => {
+        if (sort === "name") return a.name.localeCompare(b.name, "ru")
+        if (sort === "inflation") {
+          return (b.inflation_pct ?? -1) - (a.inflation_pct ?? -1)
+        }
+        return a.last_activity_at < b.last_activity_at ? 1 : -1
+      })
+  }, [sites, filter, search, sort])
+
+  const counts = useMemo(() => countByFilter(sites), [sites])
 
   return (
-    <div className="min-h-screen bg-[#020617]">
-      {/* Ambient spheres */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/4 h-100 w-100 rounded-full bg-purple-700/15 blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 h-75 w-75 rounded-full bg-indigo-600/15 blur-[120px]" />
-        <div className="absolute top-1/2 left-3/4 h-62.5 w-62.5 rounded-full bg-sky-600/10 blur-[100px]" />
+    <div className="container-page py-8">
+      <PageHeader
+        serif
+        title="Объекты"
+        subtitle={
+          sites.length > 0
+            ? `${sites.length} проектов в портфеле`
+            : "Здесь появится ваш портфель объектов"
+        }
+        actions={
+          <Link to="/sites/new">
+            <Button leftIcon={<Plus size={14} />}>Новый объект</Button>
+          </Link>
+        }
+      />
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск по названию объекта"
+            className="w-full rounded-md border border-border-subtle bg-surface py-2 pl-9 pr-3 text-sm text-fg placeholder:text-fg-tertiary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {STATUS_FILTERS.map((f) => (
+            <FilterPill
+              key={f.key}
+              active={filter === f.key}
+              label={f.label}
+              count={counts[f.key]}
+              onClick={() => setFilter(f.key)}
+              tone={f.key === "attention" ? "warning" : "default"}
+            />
+          ))}
+        </div>
+        <div className="ml-auto">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="rounded-md border border-border-subtle bg-surface px-3 py-2 text-sm text-fg-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent/30"
+          >
+            {SORTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Top navigation */}
-      <header className="relative z-10 border-b border-white/5 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <div className="flex items-center gap-2 text-white">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-indigo-400">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="text-sm font-medium">Tender Analysis</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {user && (
-              <span className="text-xs text-white/30 hidden sm:block">{user.email}</span>
-            )}
-            <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10">
-              <User className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10" onClick={logout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="relative z-10 mx-auto max-w-7xl px-6 py-12">
-        <div className="mb-10">
-          <h1 className="text-3xl font-semibold text-white">
-            {user ? `Добро пожаловать, ${user.full_name}` : "Dashboard"}
-          </h1>
-          <p className="mt-2 text-sm text-white/40">Выберите модуль для анализа тендера</p>
-        </div>
-
-        {/* Modules grid */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((module) => {
-            const cardClass = cn(
-              // `block` ensures <Link> (rendered as <a>, which is inline) fills the
-              // grid cell and its absolute overlays are positioned correctly.
-              "block group relative overflow-hidden rounded-2xl border text-left transition-all duration-300",
-              module.available
-                ? "border-white/10 bg-white/5 backdrop-blur-md hover:border-white/20 hover:bg-white/8"
-                : "border-white/5 bg-white/2",
-            )
-
-            const inner = (
-              <>
-                {/* Gradient overlay */}
-                <div className={`absolute inset-0 bg-linear-to-br ${module.accent} pointer-events-none`} />
-
-                {/* Decorative orb inside card */}
-                <div className={`absolute -top-6 -right-6 h-24 w-24 rounded-full ${module.orb} blur-2xl pointer-events-none`} />
-
-                <div className="relative p-6">
-                  {/* Icon container */}
-                  <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl ${module.glow} backdrop-blur-sm ${module.available ? "text-white" : "text-white/20"}`}>
-                    {module.icon}
-                  </div>
-
-                  {/* Coming soon badge */}
-                  {!module.available && (
-                    <span className="absolute top-5 right-5 rounded-full border border-white/10 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/20">
-                      Скоро
-                    </span>
-                  )}
-
-                  <h2 className={`mb-2 text-base font-semibold ${module.available ? "text-white" : "text-white/20"}`}>
-                    {module.title}
-                  </h2>
-                  <p className={`text-sm leading-relaxed ${module.available ? "text-white/50" : "text-white/15"}`}>
-                    {module.description}
-                  </p>
-
-                  {/* Arrow hint on hover */}
-                  {module.available && (
-                    <div className="mt-5 flex items-center gap-1.5 text-xs font-medium text-indigo-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                      Открыть модуль
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </>
-            )
-
-            if (module.available && module.href) {
-              return (
-                <Link key={module.id} to={module.href} className={cardClass}>
-                  {inner}
-                </Link>
-              )
+      <div className="mt-6">
+        {sitesQuery.isLoading ? (
+          <DashboardSkeleton />
+        ) : sites.length === 0 ? (
+          <EmptyState
+            title="Создайте первый объект"
+            description="Объект — это контейнер для договоров и параметров. С него начинается работа в Tender Analysis."
+            action={
+              <Link to="/sites/new">
+                <Button leftIcon={<Plus size={14} />}>Новый объект</Button>
+              </Link>
             }
-
-            return (
-              <div key={module.id} className={cardClass}>
-                {inner}
-              </div>
-            )
-          })}
-        </div>
-      </main>
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title="Ничего не найдено"
+            description="Попробуйте изменить фильтр или строку поиска."
+          />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((site) => (
+              <SiteCard key={site.id} site={site} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-export default DashboardPage
+interface FilterPillProps {
+  active: boolean
+  label: string
+  count: number
+  onClick: () => void
+  tone?: "default" | "warning"
+}
+
+function FilterPill({
+  active,
+  label,
+  count,
+  onClick,
+  tone = "default",
+}: FilterPillProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors duration-150",
+        active
+          ? tone === "warning"
+            ? "border-warning-border bg-warning-soft text-warning-text"
+            : "border-accent-border bg-accent-soft text-accent-text"
+          : "border-border-subtle bg-transparent text-fg-secondary hover:bg-surface-hover hover:text-fg",
+      )}
+    >
+      {label}
+      <span className="ml-1.5 text-fg-tertiary">· {count}</span>
+    </button>
+  )
+}
+
+function countByFilter(sites: SiteListItem[]): Record<StatusFilter, number> {
+  const result: Record<StatusFilter, number> = {
+    all: 0,
+    ready: 0,
+    processing: 0,
+    attention: 0,
+    empty: 0,
+    archived: 0,
+  }
+  sites.forEach((s) => {
+    if (s.status === "archived") {
+      result.archived += 1
+      return
+    }
+    result.all += 1
+    result[s.aggregate_status] += 1
+  })
+  return result
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <div
+          key={idx}
+          className="h-[164px] animate-pulse rounded-lg border border-border-subtle bg-surface"
+        />
+      ))}
+    </div>
+  )
+}
