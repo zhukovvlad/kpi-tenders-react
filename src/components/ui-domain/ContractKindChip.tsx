@@ -16,7 +16,7 @@ export function ContractKindChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-sm bg-accent-soft px-2 py-0.5 text-2xs font-medium text-accent-text",
+        "inline-flex items-center rounded-sm bg-accent-soft px-2.5 py-1 text-2xs font-medium text-accent-text",
         className,
       )}
     >

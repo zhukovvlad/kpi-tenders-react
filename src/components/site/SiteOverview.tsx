@@ -251,7 +251,6 @@ function computeKpis(items: SiteListItem[]): ChildrenKpis {
   return {
     ready,
     attention,
-    totalContracts,
     totalExtracted,
     avgInflation: avg,
     worstInflation: worst,

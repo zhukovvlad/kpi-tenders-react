@@ -29,11 +29,11 @@ export function SiteCard({ site }: SiteCardProps) {
   return (
     <Link
       to={`/sites/${site.id}`}
-      className="group flex flex-col rounded-lg border border-border-subtle bg-surface p-4 transition-colors duration-150 hover:border-border-default hover:bg-surface-hover"
+      className="group flex flex-col rounded-lg border border-border-subtle bg-surface px-6 py-5 transition-colors duration-150 hover:border-border-default hover:bg-surface-hover"
     >
-      <div className="flex gap-3">
+      <div className="flex items-start gap-3">
         <div
-          className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-accent-soft text-accent-text"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent-soft text-accent-text"
           aria-hidden
         >
           {site.cover_image_path ? (
@@ -43,7 +43,7 @@ export function SiteCard({ site }: SiteCardProps) {
               className="h-full w-full rounded-md object-cover"
             />
           ) : (
-            <Building2 size={22} />
+            <Building2 size={18} />
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -65,14 +65,14 @@ export function SiteCard({ site }: SiteCardProps) {
       </div>
 
       {site.contract_kinds.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
+        <div className="mt-4 mb-1 flex flex-wrap gap-1.5">
           {site.contract_kinds.map((kind) => (
             <ContractKindChip key={kind} kind={kind} short />
           ))}
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-3 text-xs">
+      <div className="mt-auto flex items-start justify-between [border-top:0.5px_solid_var(--color-border-subtle)] pt-4 text-xs">
         <div>
           <div className="text-fg-tertiary">Удорожание</div>
           <div className={cn("text-sm font-medium", inflationTone)}>
