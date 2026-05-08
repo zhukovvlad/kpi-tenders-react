@@ -13,12 +13,12 @@ import {
 function normalizeSiteToListItem(site: ConstructionSite): SiteListItem {
   return {
     ...site,
-    breadcrumbs: [],
-    contract_kinds: [],
-    aggregate_status: "empty",
-    extracted_count: 0,
-    inflation_pct: null,
-    last_activity_at: site.updated_at,
+    breadcrumbs: site.breadcrumbs ?? [],
+    contract_kinds: site.contract_kinds ?? [],
+    aggregate_status: site.aggregate_status ?? "empty",
+    extracted_count: site.extracted_count ?? 0,
+    inflation_pct: site.inflation_pct ?? null,
+    last_activity_at: site.last_activity_at ?? site.updated_at,
   }
 }
 

@@ -18,10 +18,11 @@ export const comparisonsApi = {
           .get<ComparisonSession[]>("/api/v1/comparison-sessions")
           .then((r) => r.data),
 
-  listForSite: (siteId: string): Promise<ComparisonSession[]> => {
-    // Бекенд не поддерживает фильтрацию по site_id в /comparison-sessions.
-    // Оставляем мок-слой до появления серверной фильтрации.
-    return mockDelay(MOCK_COMPARISONS.filter(() => Boolean(siteId)))
+  listForSite: (_siteId: string): Promise<ComparisonSession[]> => {
+    // ComparisonSession не имеет поля site_id — корректная фильтрация невозможна.
+    // Возвращаем пустой список до момента, когда бекенд добавит site_id
+    // в схему и эндпоинт GET /comparison-sessions?site_id=.
+    return mockDelay([])
   },
 
   save: (payload: SaveComparisonPayload): Promise<ComparisonSession> => {

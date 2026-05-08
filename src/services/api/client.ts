@@ -36,7 +36,8 @@ apiClient.interceptors.response.use(
     const url: string = config?.url ?? ""
 
     // Interactive auth endpoints handle errors inline — skip global toast.
-    // /auth/me is NOT in this list so its errors surface via AuthContext.
+    // /auth/me is NOT in this list; only its 401 is handled by AuthContext
+    // (redirect to /). Its 400/403/5xx errors still surface as global toasts.
     const isInteractiveAuthEndpoint = [
       "/auth/login",
       "/auth/register",
