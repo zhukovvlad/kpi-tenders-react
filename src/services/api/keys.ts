@@ -3,8 +3,12 @@ import type {
   ExtractionKey,
   ExtractionDataType,
 } from "@/types/extraction-key"
-import { mockDelay, USE_MOCKS } from "@/services/mocks"
+import { mockDelay } from "@/services/mocks"
 import { MOCK_KEYS, ORG_ID } from "@/services/mocks/data"
+
+// На бекенде нет эндпоинта /extraction-keys — он называется /contract-kinds и /file-roles,
+// но семантика отличается. Пока оставляем мок-слой до выравнивания API.
+const USE_KEYS_MOCKS = true
 
 export interface CreateKeyPayload {
   key_name: string
@@ -21,14 +25,14 @@ export interface UpdateKeyPayload {
 
 export const keysApi = {
   list: (): Promise<ExtractionKey[]> =>
-    USE_MOCKS
+    USE_KEYS_MOCKS
       ? mockDelay([...MOCK_KEYS])
       : apiClient
           .get<ExtractionKey[]>("/api/v1/extraction-keys")
           .then((r) => r.data),
 
   create: (payload: CreateKeyPayload): Promise<ExtractionKey> => {
-    if (USE_MOCKS) {
+    if (USE_KEYS_MOCKS) {
       const created: ExtractionKey = {
         id: `mock-key-${Date.now()}`,
         organization_id: ORG_ID,
@@ -48,7 +52,7 @@ export const keysApi = {
   },
 
   update: (id: string, payload: UpdateKeyPayload): Promise<ExtractionKey> => {
-    if (USE_MOCKS) {
+    if (USE_KEYS_MOCKS) {
       const key = MOCK_KEYS.find((k) => k.id === id)
       if (!key) return Promise.reject(new Error("Ключ не найден"))
       Object.assign(key, payload)
@@ -60,7 +64,7 @@ export const keysApi = {
   },
 
   delete: (id: string): Promise<void> => {
-    if (USE_MOCKS) {
+    if (USE_KEYS_MOCKS) {
       const idx = MOCK_KEYS.findIndex((k) => k.id === id)
       if (idx >= 0) MOCK_KEYS.splice(idx, 1)
       return mockDelay(undefined)

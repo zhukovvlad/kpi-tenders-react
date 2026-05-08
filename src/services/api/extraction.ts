@@ -77,22 +77,12 @@ export const extractionApi = {
   },
 
   // История запросов по документу — для карточки договора.
-  listForDocument: (documentId: string): Promise<ExtractionRequest[]> => {
-    if (USE_MOCKS)
-      return mockDelay(listExtractionRequestsForDocument(documentId))
-    return apiClient
-      .get<ExtractionRequest[]>(
-        `/api/v1/documents/${documentId}/extraction-requests`,
-      )
-      .then((r) => r.data)
-  },
+  // /documents/:id/extraction-requests нет на бекенде → мок-слой.
+  listForDocument: (documentId: string): Promise<ExtractionRequest[]> =>
+    mockDelay(listExtractionRequestsForDocument(documentId)),
 
   // Текущие извлечённые значения по документу — для таблицы параметров.
-  // На реальном бекенде вытащит из document_extracted_data + JOIN extraction_keys.
-  answersForDocument: (documentId: string): Promise<ExtractedDataItem[]> => {
-    if (USE_MOCKS) return mockDelay(listAnswersForDocument(documentId))
-    return apiClient
-      .get<ExtractedDataItem[]>(`/api/v1/documents/${documentId}/answers`)
-      .then((r) => r.data)
-  },
+  // /documents/:id/answers нет на бекенде → мок-слой.
+  answersForDocument: (documentId: string): Promise<ExtractedDataItem[]> =>
+    mockDelay(listAnswersForDocument(documentId)),
 }

@@ -15,18 +15,13 @@ export const comparisonsApi = {
     USE_MOCKS
       ? mockDelay([...MOCK_COMPARISONS])
       : apiClient
-          .get<ComparisonSession[]>("/api/v1/comparisons")
+          .get<ComparisonSession[]>("/api/v1/comparison-sessions")
           .then((r) => r.data),
 
   listForSite: (siteId: string): Promise<ComparisonSession[]> => {
-    if (USE_MOCKS) {
-      // На моках мы не знаем, какие документы какому объекту принадлежат — приблизим
-      // выборку через документы сессии (имитация будет работать благодаря единым ID).
-      return mockDelay(MOCK_COMPARISONS.filter(() => Boolean(siteId)))
-    }
-    return apiClient
-      .get<ComparisonSession[]>(`/api/v1/sites/${siteId}/comparisons`)
-      .then((r) => r.data)
+    // Бекенд не поддерживает фильтрацию по site_id в /comparison-sessions.
+    // Оставляем мок-слой до появления серверной фильтрации.
+    return mockDelay(MOCK_COMPARISONS.filter(() => Boolean(siteId)))
   },
 
   save: (payload: SaveComparisonPayload): Promise<ComparisonSession> => {
@@ -44,7 +39,7 @@ export const comparisonsApi = {
       return mockDelay(created)
     }
     return apiClient
-      .post<ComparisonSession>("/api/v1/comparisons", payload)
+      .post<ComparisonSession>("/api/v1/comparison-sessions", payload)
       .then((r) => r.data)
   },
 }
