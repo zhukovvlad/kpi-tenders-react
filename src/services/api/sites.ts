@@ -7,6 +7,21 @@ import {
   findSiteById,
 } from "@/services/mocks/data"
 
+// Нормализует ответ бекенда (ConstructionSite) в SiteListItem,
+// добавляя дефолты для агрегатных полей, которые пока не возвращает бекенд
+// (breadcrumbs, contract_kinds, aggregate_status и пр. появятся в будущей миграции).
+function normalizeSiteToListItem(site: ConstructionSite): SiteListItem {
+  return {
+    ...site,
+    breadcrumbs: site.breadcrumbs ?? [],
+    contract_kinds: site.contract_kinds ?? [],
+    aggregate_status: site.aggregate_status ?? "empty",
+    extracted_count: site.extracted_count ?? 0,
+    inflation_pct: site.inflation_pct ?? null,
+    last_activity_at: site.last_activity_at ?? site.updated_at,
+  }
+}
+
 export interface CreateSitePayload {
   name: string
   parent_id?: string | null
@@ -27,25 +42,22 @@ export const sitesApi = {
       : apiClient.get<ConstructionSite[]>("/api/v1/sites").then((r) => r.data),
 
   // Расширенный листинг с агрегатами для дашборда: chips, status, инфляция и пр.
-  // На бекенде когда-то соберётся из VIEW v_site_status + JOIN documents.
-  // Дашборд показывает только корневые объекты (parent_id IS NULL) — дочерние
-  // доступны через drill-down на промежуточном экране родителя.
+  // Бекенд пока не возвращает агрегатные поля — нормализуем через normalizeSiteToListItem.
+  // Дашборд показывает только корневые объекты (parent_id IS NULL).
   listForDashboard: (): Promise<SiteListItem[]> =>
     USE_MOCKS
       ? mockDelay(getMockSiteList().filter((s) => s.parent_id === null))
       : apiClient
-          .get<SiteListItem[]>("/api/v1/sites?aggregate=true&roots=true")
-          .then((r) => r.data),
+          .get<ConstructionSite[]>("/api/v1/sites/root")
+          .then((r) => r.data.map(normalizeSiteToListItem)),
 
   // Дочерние объекты для промежуточного экрана родителя.
   listChildren: (parentId: string): Promise<SiteListItem[]> =>
     USE_MOCKS
       ? mockDelay(getMockSiteList().filter((s) => s.parent_id === parentId))
       : apiClient
-          .get<SiteListItem[]>(
-            `/api/v1/sites?aggregate=true&parent_id=${encodeURIComponent(parentId)}`,
-          )
-          .then((r) => r.data),
+          .get<ConstructionSite[]>(`/api/v1/sites/${parentId}/children`)
+          .then((r) => r.data.map(normalizeSiteToListItem)),
 
   get: (siteId: string): Promise<ConstructionSite> => {
     if (USE_MOCKS) {

@@ -22,6 +22,17 @@ export interface RegisterResponse {
   warning?: string
 }
 
+// Shape returned by GET /api/v1/auth/me — differs from the frontend User type
+// only in the field name for the org identifier.
+interface MeResponse {
+  id: string
+  organization_id: string
+  email: string
+  full_name: string
+  role: "admin" | "member"
+  is_active: boolean
+}
+
 const MOCK_SESSION_KEY = "mock-auth-session"
 
 function readMockSession(): User | null {
@@ -87,6 +98,15 @@ export const authApi = {
       }
       return mockDelay(session, 80)
     }
-    return apiClient.get<User>("/api/v1/auth/me").then((r) => r.data)
+    return apiClient
+      .get<MeResponse>("/api/v1/auth/me")
+      .then((r) => ({
+        id: r.data.id,
+        org_id: r.data.organization_id,
+        email: r.data.email,
+        full_name: r.data.full_name,
+        role: r.data.role,
+        is_active: r.data.is_active,
+      }))
   },
 }

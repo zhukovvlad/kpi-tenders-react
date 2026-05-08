@@ -147,7 +147,7 @@ The legacy routes `/documents`, `/anonymization`, `/extraction` were removed ent
 
 `construction_sites` is hierarchical via `parent_id` (microdistrict → ЖК → очередь → корпус). The IA collapses this onto a single route:
 
-- **`/dashboard` shows only root sites** (`parent_id IS NULL`). Root means «ЖК / БЦ / складской комплекс целиком», not an individual очередь. `sitesApi.listForDashboard()` filters by `parent_id === null` in mocks; on the backend this is `?aggregate=true&roots=true`.
+- **`/dashboard` shows only root sites** (`parent_id IS NULL`). Root means «ЖК / БЦ / складской комплекс целиком», not an individual очередь. `sitesApi.listForDashboard()` filters by `parent_id === null` in mocks; on the backend this is `GET /api/v1/sites/root`.
 - **`/sites/:siteId` has two behaviors decided by data, not URL.** `SitePage` loads the full sites list, computes `hasChildren = some(s.parent_id === siteId)`, and renders one of:
   - `<SiteOverview/>` — intermediate screen: project header, 4 KPIs (готовы / требуют внимания / ср. удорожание / худшее удорожание), table of children with status pills and contract chips. Drill-down click on a child row goes to `/sites/:siteId` of the child — which again resolves to overview or card by the same rule.
   - `<SiteCardView/>` (in `SitePage.tsx`) — final card: tabs «Договоры / Удорожание / Сравнения / История / Аудит обработки», upload dialog. This is the existing leaf behavior.
@@ -239,8 +239,11 @@ Hierarchy is built from borders and tonal surfaces, **not shadows**. The only al
 POST /api/v1/auth/login      { email, password }
 POST /api/v1/auth/register   { name, inn?, email, password, full_name }
 POST /api/v1/auth/logout
-GET  /api/v1/auth/me         → { id, email, full_name, role, org_id }
+POST /api/v1/auth/refresh    (cookie rotation, called automatically by interceptor)
+GET  /api/v1/auth/me         → { id, email, full_name, role, organization_id, is_active }
 ```
+
+**Note:** The backend returns `organization_id`, not `org_id`. `auth.fetchMe()` maps `organization_id → org_id` before handing the object to `AuthContext`. Never pass `org_id` in request bodies — the backend derives tenant from the JWT.
 
 **Role-based rendering:**
 ```tsx
@@ -257,7 +260,7 @@ Admin-only pages (`/keys`, `/settings`) gate with this pattern; non-admin sees `
 - Base URL from `VITE_API_URL` env var (empty = relative paths for proxy).
 
 **Interceptor rules** (centralized, in `client.ts`):
-- `401` → **not** handled by the interceptor; `AuthContext` navigates to `/` (with `replace: true`) on 401 to avoid redirect loops.
+- `401` → interceptor attempts `POST /api/v1/auth/refresh` once (`_retried` flag prevents loops). Concurrent requests are queued and replayed after a successful refresh. If refresh fails, the 401 propagates to `AuthContext`, which navigates to `/` (with `replace: true`).
 - `403` → `toast.error('Доступ запрещён')`.
 - `400` → `toast.error(message)` — skipped for `/auth/login`, `/auth/register`, `/auth/logout` (they show inline errors). `/auth/me` errors **do** surface here.
 - `5xx` → `toast.error('Ошибка сервера. Попробуйте позже.')`.
@@ -267,17 +270,29 @@ Admin-only pages (`/keys`, `/settings`) gate with this pattern; non-admin sees `
 
 ## Mock Layer
 
-Most domain endpoints aren't ready on the backend yet, so the frontend ships a deterministic mock layer.
+The project runs in a **hybrid mock mode**: most auth and sites endpoints talk to the real backend, while endpoints that don't exist yet stay fully mocked.
 
 `src/services/mocks/`:
-- **`index.ts`** exports `USE_MOCKS = !PROD && VITE_USE_MOCKS !== "false"` and helpers `mockDelay`, `mockReject`. Default in dev = on. To talk to the real backend in dev, set `VITE_USE_MOCKS=false` in `.env.local`.
+- **`index.ts`** exports `USE_MOCKS = !PROD && VITE_USE_MOCKS !== "false"` and helpers `mockDelay`, `mockReject`. Default in dev = on. To switch the whole layer off: `VITE_USE_MOCKS=false` in `.env.local`.
 - **`data.ts`** holds seed data: 8 construction sites with hierarchy, 9 documents with bundle structure (contract root + estimate + TZ children), 10 extraction keys (8 system + 2 tenant), ~30 extracted values, 3 extraction requests, 2 saved comparisons, 8 site events. All IDs are deterministic UUID-like strings for stable cross-references.
 
-Each service in `src/services/api/*.ts` checks `if (USE_MOCKS)` at the top of every method and either returns mock data or hits the real endpoint.
+**Hybrid pattern — service-level mock overrides:** Some services declare their own `const USE_*_MOCKS = true` regardless of the global flag, because the backend endpoint either doesn't exist or has an incompatible response schema. Current overrides:
+
+| Service | Override | Reason |
+|---------|----------|--------|
+| `keysApi` | `USE_KEYS_MOCKS = true` | No `/api/v1/extraction-keys` on backend |
+| `siteEventsApi` | `USE_EVENTS_MOCKS = true` | `/audit-log` schema differs from `SiteEvent` |
+| `comparisonsApi.listForSite` | always mock | Backend doesn't filter sessions by `site_id` |
+| `extractionApi.listForDocument` | always mock | No `/documents/:id/extraction-requests` |
+| `extractionApi.answersForDocument` | always mock | No `/documents/:id/answers` |
+
+See `go-kpi-tenders/docs/frontend-api-gaps.md` for a prioritized list of backend work needed to remove these overrides.
 
 `auth.fetchMe()` in mock mode reads/writes `localStorage["mock-auth-session"]` and rejects with an axios-shaped 401 error so the existing `AuthContext` 401 handler still triggers correctly.
 
 When wiring a new endpoint, the pattern is: keep the real `apiClient.get/post(...)` branch as the source of truth, and add a parallel `if (USE_MOCKS) return mockDelay(...)` branch reading or mutating the seed data so UIs work end-to-end without the backend.
+
+**Response normalization for sites:** `sitesApi.listForDashboard` and `listChildren` pass each backend `ConstructionSite` through `normalizeSiteToListItem()` which adds safe defaults for aggregate fields (`breadcrumbs: []`, `contract_kinds: []`, `aggregate_status: 'empty'`, `extracted_count: 0`, `inflation_pct: null`). When the backend adds these fields they will naturally override the defaults.
 
 **Important:** `MOCK_SITE_LIST` in `data.ts` is a static snapshot computed at module init. After CRUD mutations (`create`/`update`/`delete`), use `getMockSiteList()` instead — it recomputes from the current `MOCK_SITES` array and reflects mutations. `sitesApi.listForDashboard` and `listChildren` use `getMockSiteList()`.
 
@@ -440,8 +455,8 @@ extractionApi.answersForDocument(documentId)
 
 ```ts
 sitesApi.list()                            // GET /api/v1/sites → ConstructionSite[]
-sitesApi.listForDashboard()                // → SiteListItem[] — ROOT SITES ONLY (parent_id IS NULL); aggregates: contract_kinds, aggregate_status, inflation_pct, last_activity_at
-sitesApi.listChildren(parentId)            // → SiteListItem[] — direct children of :parentId, used by SiteOverview intermediate screen
+sitesApi.listForDashboard()                // GET /api/v1/sites/root → SiteListItem[] — ROOT SITES ONLY (parent_id IS NULL); aggregates: contract_kinds, aggregate_status, inflation_pct, last_activity_at
+sitesApi.listChildren(parentId)            // GET /api/v1/sites/:id/children → SiteListItem[] — direct children of :parentId, used by SiteOverview intermediate screen
 sitesApi.get(siteId)                       // → ConstructionSite
 sitesApi.create({ name, parent_id?, cover_image_path? })
 sitesApi.update(siteId, partial)

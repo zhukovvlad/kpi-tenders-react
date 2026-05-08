@@ -4,4 +4,5 @@ export interface User {
   email: string
   full_name: string
   role: "admin" | "member"
+  is_active?: boolean
 }
